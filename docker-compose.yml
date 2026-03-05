@@ -1,0 +1,76 @@
+name: sirem
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: sirem_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: sismov
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    container_name: sirem_app
+    restart: always
+    volumes:
+      - ./app:/usr/src/app/app
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/sismov?schema=public
+      USE_VLLM: "true"
+      VLLM_URL: "http://vllm:8000/v1/chat/completions"
+      USE_OLLAMA: "false"
+    develop:
+      watch:
+        - action: sync
+          path: ./app
+          target: /usr/src/app/app
+        - action: rebuild
+          path: package.json
+    depends_on:
+      db:
+        condition: service_healthy
+      vllm:
+        condition: service_started
+
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: sirem_vllm
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - huggingface_data:/root/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # Llama 3.1 8B Instruct AWQ INT4 cuantizado, cabe en 8GB de VRAM
+    # gpu-memory-utilization a 0.85 para evitar OOM, y max-model-len ajustado
+    command: >-
+      --model hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4
+      --quantization awq
+      --dtype half
+      --gpu-memory-utilization 0.85
+      --max-model-len 4096
+      --port 8000
+    shm_size: '4gb'
+
+volumes:
+  db_data:
+  huggingface_data:

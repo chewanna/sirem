@@ -1,0 +1,324 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+
+  /* === PRIMARY COLORS === */
+  --primary: #9F2241;
+  /*  institucional */
+  --primary-hover: #691C32;
+  /*  */
+  --primary-fondo: #b9375c;
+  /*  */
+  --primary-foreground: #ffffff;
+
+  /* === SECONDARY COLORS === */
+  --secondary: #64748b;
+  /* Slate-500 */
+  --secondary-hover: #475569;
+  /* Slate-600 */
+  --secondary-foreground: #ffffff;
+
+  /* === BACKGROUNDS === */
+  --background: #f8fafc;
+  /* Slate-50 */
+  --surface: #ffffff;
+  --surface-alt: #f1f5f9;
+  /* Slate-100 */
+
+  /* === TEXT === */
+  --text-primary: #0f172a;
+  /* Slate-900 */
+  --text-secondary: #475569;
+  /* Slate-600 */
+  --text-muted: #94a3b8;
+  /* Slate-400 */
+
+  /* === BORDERS & DIVIDERS === */
+  --border: #94a3b8;
+  /* Slate-200 */
+  --divider: #0f172a;
+  /* Slate-300 */
+
+  /* === STATUS COLORS === */
+  --success: #16a34a;
+  /* Green-600 */
+  --success-bg: #dcfce7;
+  /* Green-100 */
+  --warning: #ea580c;
+  /* Orange-600 */
+  --warning-bg: #fed7aa;
+  /* Orange-200 */
+  --danger: #feddb9;
+  /* Red-600 */
+  --danger-bg: #fee2e2;
+  /* Red-100 */
+  --info: #0284c7;
+  /* Sky-600 */
+  --info-bg: #e0f2fe;
+  /* Sky-100 */
+
+  /* === LEGACY COMPATIBILITY === */
+  --foreground: var(--text-primary);
+  --card: var(--surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface);
+  --popover-foreground: var(--text-primary);
+  --muted: #f1f5f9;
+  --muted-foreground: var(--text-secondary);
+  --accent: #e0e7ff;
+  /* Indigo-100 */
+  --accent-foreground: var(--text-primary);
+  --destructive: var(--danger);
+  --destructive-foreground: var(--primary-foreground);
+  --input: #475569;
+  --input-background: #64748b;
+  --switch-background: #475569;
+  --ring: var(--primary);
+
+  /* === CHARTS === */
+  --chart-1: #3b82f6;
+  /* Blue-500 */
+  --chart-2: #10b981;
+  /* Emerald-500 */
+  --chart-3: #f59e0b;
+  /* Amber-500 */
+  --chart-4: #8b5cf6;
+  /* Violet-500 */
+  --chart-5: #ec4899;
+  /* Pink-500 */
+
+  /* === LAYOUT === */
+  --radius: 0.75rem;
+  /* 12px */
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+
+  /* === SIDEBAR === */
+  --sidebar: #d4c19c;
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f1f5f9;
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--primary);
+  --cursor-pointer: #eff6ff
+}
+
+.dark {
+  --background: #0f172a;
+  /* Slate-900 */
+  --surface: #1e293b;
+  /* Slate-800 */
+  --surface-alt: #334155;
+  /* Slate-700 */
+
+  --text-primary: #f8fafc;
+  /* Slate-50 */
+  --text-secondary: #cbd5e1;
+  /* Slate-300 */
+  --text-muted: #64748b;
+  /* Slate-500 */
+
+  --border: #334155;
+  /* Slate-700 */
+  --divider: #475569;
+  /* Slate-600 */
+
+  --primary: #3b82f6;
+  /* Blue-500 */
+  --primary-hover: #2563eb;
+  /* Blue-600 */
+
+  --foreground: var(--text-primary);
+  --card: var(--surface);
+  --card-foreground: var(--text-primary);
+  --popover: var(--surface);
+  --popover-foreground: var(--text-primary);
+  --muted: #334155;
+  --muted-foreground: var(--text-secondary);
+  --accent: #1e3a8a;
+  --accent-foreground: var(--text-primary);
+  --destructive: #feddb9;
+  --destructive-foreground: #ffffff;
+  --input: #475569;
+  --input-background: #1e293b;
+  --switch-background: #475569;
+  --ring: var(--primary);
+
+  --sidebar: #1e293b;
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: #64748b;
+  --sidebar-accent: #334155;
+  --sidebar-accent-foreground: var(--text-primary);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--primary);
+  --cursor-pointer: #1e3a8a
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+.theme-green {
+  --primary: #047857;
+  /* Green-700 */
+  --primary-hover: #065f46;
+  /* Green-800 */
+  --secondary: #059669;
+  /* Green-600 */
+  --secondary-hover: #047857;
+  /* Green-700 */
+  --accent: #d1fae5;
+  /* Green-100 */
+  --chart-1: #10b981;
+  /* Emerald-500 */
+  --chart-2: #3b82f6;
+  /* Blue-500 */
+  --chart-3: #f59e0b;
+  /* Amber-500 */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /**
+  * Default typography styles for HTML elements (h1-h4, p, label, button, input).
+  * These are in @layer base, so Tailwind utility classes (like text-sm, text-lg) automatically override them.
+  */
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-size: var(--text-xl);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h3 {
+    font-size: var(--text-lg);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+}
