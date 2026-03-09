@@ -5,11 +5,11 @@ import React, { createContext, useContext, useMemo, useReducer } from 'react';
 // Estado global de la aplicación
 type Estado = {
   estaAutenticado: boolean;
-  idPersonalSeleccionado: number | null;
+  idPersonalSeleccionado: string | null;
   senalReinicio: number;
   modoOscuro: boolean;
   usuario: {
-    id: number;
+    id: string;
     username: string;
     role: string;
     nombre: string | null;
@@ -21,7 +21,7 @@ type Estado = {
 type Accion =
   | { type: 'INICIAR_SESION'; payload: any }
   | { type: 'CERRAR_SESION' }
-  | { type: 'SELECCIONAR_PERSONAL'; idPersonal: number | null }
+  | { type: 'SELECCIONAR_PERSONAL'; idPersonal: string | null }
   | { type: 'REINICIAR_TODO' }
   | { type: 'ALTERNAR_MODO_OSCURO' }
   | { type: 'ESTABLECER_MODO_OSCURO'; valor: boolean };
@@ -71,7 +71,7 @@ type ValorContextoEstadoApp = {
   actions: {
     login: (userData: any) => void;
     logout: () => void;
-    seleccionarPersonal: (idPersonal: number | null) => void;
+    seleccionarPersonal: (idPersonal: string | null) => void;
     reiniciarTodo: () => void;
     alternarModoOscuro: () => void;
     establecerModoOscuro: (valor: boolean) => void;
@@ -109,7 +109,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const actions = useMemo(() => ({
     login: (userData: any) => dispatch({ type: 'INICIAR_SESION', payload: userData }),
     logout: () => dispatch({ type: 'CERRAR_SESION' }),
-    seleccionarPersonal: (idPersonal: number | null) =>
+    seleccionarPersonal: (idPersonal: string | null) =>
       dispatch({ type: 'SELECCIONAR_PERSONAL', idPersonal }),
     reiniciarTodo: () => dispatch({ type: 'REINICIAR_TODO' }),
     alternarModoOscuro: () => dispatch({ type: 'ALTERNAR_MODO_OSCURO' }),

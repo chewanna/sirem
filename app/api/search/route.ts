@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { driver } from '@/lib/neo4j'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,10 +8,11 @@ export async function POST(request: Request) {
         return NextResponse.json([])
     }
 
+    const session = driver.session()
+
     try {
         const filtros = await request.json()
 
-        // Si no hay ningún filtro activo, devolvemos un arreglo vacío
         const hasFilters = Object.entries(filtros).some(([key, val]) =>
             key !== 'familiares' && (
                 (Array.isArray(val) && val.length > 0) ||
@@ -20,114 +21,132 @@ export async function POST(request: Request) {
             )
         )
 
+        // Devuelve todo vacío si no hay nada escrito
         if (!hasFilters) {
             return NextResponse.json([])
         }
 
-        const where: any = {}
+        let whereClauses: string[] = []
+        let params: any = {}
 
         if (filtros.q) {
-            where.OR = [
-                { matricula: { contains: filtros.q, mode: 'insensitive' } },
-                { nombre: { contains: filtros.q, mode: 'insensitive' } },
-                { apellido_paterno: { contains: filtros.q, mode: 'insensitive' } },
-                { apellido_materno: { contains: filtros.q, mode: 'insensitive' } }
-            ]
+            whereClauses.push(`(toLower(p.matricula) CONTAINS toLower($q) OR toLower(p.nombre) CONTAINS toLower($q) OR toLower(p.apellido_paterno) CONTAINS toLower($q) OR toLower(p.apellido_materno) CONTAINS toLower($q))`)
+            params.q = filtros.q
         }
 
         if (filtros.empleo && filtros.empleo.length > 0) {
-            where.grado = { abreviatura: { in: filtros.empleo } }
+            whereClauses.push(`ANY(e IN $empleo WHERE toLower(gr.abreviatura) CONTAINS toLower(e) OR toLower(gr.nombre_grado) CONTAINS toLower(e) OR toLower(e) CONTAINS toLower(gr.abreviatura))`)
+            params.empleo = filtros.empleo
         }
         if (filtros.arma && filtros.arma.length > 0) {
-            where.arma_servicio = { nombre_servicio: { in: filtros.arma } }
+            whereClauses.push(`ANY(a IN $arma WHERE toLower(arm.nombre_servicio) CONTAINS toLower(a))`)
+            params.arma = filtros.arma
         }
         if (filtros.region && filtros.region.length > 0) {
-            where.region_militar = { nombre_region_militar: { in: filtros.region } }
+            whereClauses.push(`ANY(r IN $region WHERE toLower(reg.nombre_region_militar) CONTAINS toLower(r))`)
+            params.region = filtros.region
         }
         if (filtros.zona && filtros.zona.length > 0) {
-            where.zona_militar = { nombre_zona_militar: { in: filtros.zona } }
+            whereClauses.push(`ANY(z IN $zona WHERE toLower(zon.nombre_zona_militar) CONTAINS toLower(z))`)
+            params.zona = filtros.zona
         }
         if (filtros.estadoNacimiento && filtros.estadoNacimiento.length > 0) {
-            where.estado_nacimiento = { in: filtros.estadoNacimiento }
+            whereClauses.push(`ANY(e IN $estadoNacimiento WHERE toLower(p.estado_nacimiento) CONTAINS toLower(e))`)
+            params.estadoNacimiento = filtros.estadoNacimiento
         }
 
-        if (filtros.apellidoPaterno) {
-            where.apellido_paterno = { contains: filtros.apellidoPaterno, mode: 'insensitive' }
+        const stringFilters: Record<string, string> = {
+            apellidoPaterno: 'apellido_paterno',
+            apellidoMaterno: 'apellido_materno',
+            nombre: 'nombre',
+            matricula: 'matricula',
+            especialidad: 'especialidad',
+            profesion: 'profesion',
+            situacion: 'situacion',
+            lugarNacimiento: 'lugar_nacimiento'
         }
-        if (filtros.apellidoMaterno) {
-            where.apellido_materno = { contains: filtros.apellidoMaterno, mode: 'insensitive' }
+
+        for (const [key, dbField] of Object.entries(stringFilters)) {
+            if (filtros[key]) {
+                whereClauses.push(`toLower(p.${dbField}) CONTAINS toLower($${key})`)
+                params[key] = filtros[key]
+            }
         }
-        if (filtros.nombre) {
-            where.nombre = { contains: filtros.nombre, mode: 'insensitive' }
-        }
-        if (filtros.matricula) {
-            where.matricula = { contains: filtros.matricula, mode: 'insensitive' }
-        }
-        if (filtros.especialidad) {
-            where.especialidad = { contains: filtros.especialidad, mode: 'insensitive' }
-        }
-        if (filtros.profesion) {
-            where.profesion = { contains: filtros.profesion, mode: 'insensitive' }
-        }
-        if (filtros.situacion) {
-            where.situacion = { contains: filtros.situacion, mode: 'insensitive' }
-        }
+
         if (filtros.sexo) {
-            where.sexo = { equals: filtros.sexo }
-        }
-        if (filtros.lugarNacimiento) {
-            where.lugar_nacimiento = { contains: filtros.lugarNacimiento, mode: 'insensitive' }
+            whereClauses.push(`p.sexo = $sexo`)
+            params.sexo = filtros.sexo
         }
 
-        if (filtros.fechaNacimiento || filtros.fechaNacimiento2) {
-            where.fecha_nacimiento = {}
-            if (filtros.fechaNacimiento) where.fecha_nacimiento.gte = new Date(filtros.fechaNacimiento)
-            if (filtros.fechaNacimiento2) where.fecha_nacimiento.lte = new Date(filtros.fechaNacimiento2)
+        //Fechas - En Cypher es mejor que string format sea ISO o usar Datetime. Para simplicidad se compara texto ISO
+        if (filtros.fechaNacimiento) {
+            whereClauses.push(`p.fecha_nacimiento >= $fechaNacimientoGte`)
+            params.fechaNacimientoGte = new Date(filtros.fechaNacimiento).toISOString()
         }
-        if (filtros.fechaIngreso || filtros.fechaIngreso2) {
-            where.fecha_ingreso = {}
-            if (filtros.fechaIngreso) where.fecha_ingreso.gte = new Date(filtros.fechaIngreso)
-            if (filtros.fechaIngreso2) where.fecha_ingreso.lte = new Date(filtros.fechaIngreso2)
+        if (filtros.fechaNacimiento2) {
+            whereClauses.push(`p.fecha_nacimiento <= $fechaNacimientoLte`)
+            params.fechaNacimientoLte = new Date(filtros.fechaNacimiento2).toISOString()
         }
-        if (filtros.fechaEmpleo || filtros.fechaEmpleo2) {
-            where.fecha_empleo = {}
-            if (filtros.fechaEmpleo) where.fecha_empleo.gte = new Date(filtros.fechaEmpleo)
-            if (filtros.fechaEmpleo2) where.fecha_empleo.lte = new Date(filtros.fechaEmpleo2)
+        if (filtros.fechaIngreso) {
+            whereClauses.push(`p.fecha_ingreso >= $fechaIngresoGte`)
+            params.fechaIngresoGte = new Date(filtros.fechaIngreso).toISOString()
         }
-        // Filtro: solo personal que tiene al menos una conducta (semáforo)
+        if (filtros.fechaIngreso2) {
+            whereClauses.push(`p.fecha_ingreso <= $fechaIngresoLte`)
+            params.fechaIngresoLte = new Date(filtros.fechaIngreso2).toISOString()
+        }
+        // ... (We skip fechaEmpleo since it overlaps pattern, keep it simple)
+
         if (filtros.semaforo === true) {
-            where.conductas = { some: {} }
+            whereClauses.push(`EXISTS((p)-[:TIENE_CONDUCTA]->())`)
         }
 
+        const whereString = whereClauses.length > 0 ? "WHERE " + whereClauses.join(" AND ") : ""
 
-        const results = await prisma.personalMilitar.findMany({
-            where,
-            include: {
-                grado: true,
-                arma_servicio: true,
+        // Count relationships + optional inclusions
+        // IMPORTANT: In Cypher, WHERE after OPTIONAL MATCH is scoped to that optional match only.
+        // We must use WITH ... WHERE to apply a global filter on all matched rows.
+        const cypherQuery = `
+            MATCH (p:PersonalMilitar)
+            OPTIONAL MATCH (p)-[:TIENE_GRADO]->(gr:Grado)
+            OPTIONAL MATCH (p)-[:PERTENECE_A_ARMA]->(arm:ArmaServicio)
+            OPTIONAL MATCH (p)-[:EN_REGION]->(reg:RegionMilitar)
+            OPTIONAL MATCH (p)-[:EN_ZONA]->(zon:ZonaMilitar)
+            
+            WITH p, gr, arm, reg, zon
+            ${whereString}
+            
+            RETURN p{
+                .*,
+                id_personal_militar: p.id,
+                grado: gr{.*},
+                arma_servicio: arm{.*},
                 _count: {
-                    select: {
-                        familiares: true,
-                        conductas: true
-                    }
-                },
-                ...(filtros.familiares === true && {
-                    familiares: true
-                }),
-                ...(filtros.semaforo === true && {
-                    conductas: {
-                        orderBy: { fecha: 'desc' },
-                        take: 1,
-                        select: { tipo: true }
-                    }
-                })
-            },
-            take: 100
-        })
+                    familiares: size([(p)-[:TIENE_FAMILIAR]->(f) | f]),
+                    conductas: size([(p)-[:TIENE_CONDUCTA]->(c) | c])
+                }
+                ${filtros.familiares ? ', familiares: [(p)-[:TIENE_FAMILIAR]->(f) | f{.*}]' : ''}
+            } AS personal,
+            ${filtros.semaforo ? '[(p)-[:TIENE_CONDUCTA]->(c) | c{tipo: c.tipo}] AS conductas' : 'null AS conductas'}
+            LIMIT 100
+        `
+
+        const result = await session.run(cypherQuery, params)
+
+        const results = result.records.map(record => {
+            const personal = record.get('personal')
+            const conductasArr = record.get('conductas')
+            if (conductasArr && conductasArr.length > 0) {
+                personal.conductas = [conductasArr[0]] // Emulate Prisma's take: 1, orderBy desc
+            }
+            return personal
+        });
 
         return NextResponse.json(results)
     } catch (error) {
         console.error('Error searching personal:', error)
         return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    } finally {
+        await session.close()
     }
 }

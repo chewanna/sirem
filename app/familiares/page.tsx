@@ -16,6 +16,11 @@ const Familiares = () => {
 
   const [familiares, setFamiliares] = useState<any[]>([]);
   const [cargando, setCargando] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Modal agregar
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -150,6 +155,8 @@ const Familiares = () => {
     setParentesco('');
   };
 
+  if (!mounted) return null;
+
   return (
     <section className="p-8 space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
@@ -185,11 +192,11 @@ const Familiares = () => {
             <p className="text-[var(--text-secondary)] font-medium">No hay familiares militares registrados.</p>
           </div>
         ) : (
-          familiares.map((rel) => {
+          familiares.map((rel, i) => {
             const f = rel.familiar;
             return (
               <div
-                key={rel.id_familiar_militar}
+                key={rel.id_familiar_militar || i}
                 className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 hover:shadow-md transition-all group relative"
               >
                 <div className="flex items-start gap-4">

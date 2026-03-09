@@ -1,19 +1,18 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { driver } from '@/lib/neo4j';
 import { getUserFromToken } from '@/lib/auth';
 
-const prisma = new PrismaClient();
-
 export async function POST(req: Request) {
+    const session = driver.session();
     try {
-        const session = await getUserFromToken();
+        const userInfo = await getUserFromToken();
 
-        if (session && session.id) {
+        if (userInfo && userInfo.id) {
             // Remove the active session from DB
-            await prisma.usuario.update({
-                where: { id_usuario: session.id },
-                data: { session_id: null }
-            });
+            await session.run(`
+                MATCH (u:Usuario {id: $userId})
+                SET u.session_id = null
+            `, { userId: userInfo.id });
         }
 
         const response = NextResponse.json({ success: true });
@@ -26,5 +25,7 @@ export async function POST(req: Request) {
     } catch (error) {
         console.error('Error logging out:', error);
         return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
+    } finally {
+        await session.close();
     }
 }

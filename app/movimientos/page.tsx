@@ -9,7 +9,12 @@ const Movimientos = () => {
   const [cargando, setCargando] = useState(false);
   const [seleccionado, setSeleccionado] = useState<any | null>(null);
   const [modoEdicion, setModoEdicion] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const puedeAgregar = state.usuario?.role !== 'USUARIO_REGULAR';
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const initForm = {
     grado: '',
@@ -92,6 +97,8 @@ const Movimientos = () => {
     }
   };
 
+  if (!mounted) return null;
+
   return (
     <section>
       <div className="flex w-full p-4 space-y-5">
@@ -142,9 +149,9 @@ const Movimientos = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      movimientos.map((m) => (
+                      movimientos.map((m, i) => (
                         <TableRow
-                          key={m.id_movimiento}
+                          key={m.id_movimiento || `doc-${i}`}
                           className={`cursor-pointer text-[var(--text-primary)] hover:bg-[var(--surface-alt)] ${seleccionado?.id_movimiento === m.id_movimiento ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
                           onClick={() => setSeleccionado(m)}
                         >
@@ -191,16 +198,15 @@ const Movimientos = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      movimientos.map((m) => (
+                      movimientos.map((m, i) => (
                         <TableRow
-                          key={m.id_movimiento}
+                          key={m.id_movimiento || `doc-${i}`}
                           className={`cursor-pointer text-[var(--text-primary)] hover:bg-[var(--surface-alt)] ${seleccionado?.id_movimiento === m.id_movimiento ? 'bg-blue-100 dark:bg-blue-900/30' : ''}`}
                           onClick={() => setSeleccionado(m)}
                         >
                           <TableCell>{m.no_documento || 'verificar esto'}</TableCell>
                           <TableCell>{m.fecha_mov ? new Date(m.fecha_mov).toLocaleDateString('es-MX') : '-'}</TableCell>
                           <TableCell>{m.tipo || '-'}</TableCell>
-
                         </TableRow>
                       ))
                     )}
@@ -213,8 +219,8 @@ const Movimientos = () => {
                 </footer>
               </div>
             </section>
-          </div>
-        </div>
+          </div >
+        </div >
         <div className="bg-[var(--surface)] rounded-lg border border-slate-200 flex-1 p-2 text-center">
           <span className="bg-[var(--surface)] text-3xs font-bold text-[var(--text-primary)] mb-2">Información Complementaria de la S-1 (R.H.) E.M.C.D.N.</span>
           <fieldset disabled={!modoEdicion || !state.idPersonalSeleccionado} className={(!modoEdicion || !state.idPersonalSeleccionado) ? 'opacity-60 cursor-not-allowed' : ''}>
@@ -323,8 +329,8 @@ const Movimientos = () => {
             )}
           </div>
         </div>
-      </div>
-    </section>
+      </div >
+    </section >
   );
 }
 

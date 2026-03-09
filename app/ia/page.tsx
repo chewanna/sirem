@@ -6,8 +6,8 @@ import { Send, User, Bot, Database, Brain, Zap, MessageSquare, ChevronDown, Chev
 interface ChatMessage {
     role: 'user' | 'assistant';
     content: string;
-    intent?: 'sql' | 'vector' | 'hybrid' | 'conversational';
-    query?: string;
+    intent?: 'sql' | 'mql' | 'cypher' | 'vector' | 'hybrid' | 'conversational';
+    query?: string | any;
     vectorQuery?: string;
     results?: any[];
     error?: string;
@@ -15,6 +15,8 @@ interface ChatMessage {
 
 const INTENT_CONFIG: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
     sql: { label: 'Consulta SQL', icon: <Database className="w-3 h-3" />, color: '#3b82f6' },
+    mql: { label: 'Consulta MQL', icon: <Database className="w-3 h-3" />, color: '#10b981' },
+    cypher: { label: 'Consulta Cypher', icon: <Database className="w-3 h-3" />, color: '#6366f1' },
     vector: { label: 'Búsqueda por Perfil', icon: <Brain className="w-3 h-3" />, color: '#8b5cf6' },
     hybrid: { label: 'Búsqueda Híbrida', icon: <Zap className="w-3 h-3" />, color: '#f59e0b' },
     conversational: { label: 'Conversación', icon: <MessageSquare className="w-3 h-3" />, color: '#10b981' },
@@ -165,7 +167,9 @@ export default function IAView() {
                                                     <tr key={idx} className="text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] transition-colors">
                                                         {Object.values(row).map((val: any, j) => (
                                                             <td key={j} className="px-4 py-2 whitespace-nowrap">
-                                                                {val !== null && val !== undefined ? String(val) : '-'}
+                                                                {val !== null && val !== undefined
+                                                                    ? (typeof val === 'object' ? JSON.stringify(val) : String(val))
+                                                                    : '-'}
                                                             </td>
                                                         ))}
                                                     </tr>
@@ -177,7 +181,7 @@ export default function IAView() {
 
                                 {/* Collapsible Details */}
                                 {m.role === 'assistant' && (m.query || (m.results && m.results.length > 0)) && (
-                                    <DetailsSection query={m.query} results={m.results} vectorQuery={m.vectorQuery} />
+                                    <DetailsSection query={m.query} results={m.results} vectorQuery={m.vectorQuery} intent={m.intent} />
                                 )}
                             </div>
                         </div>
@@ -224,7 +228,7 @@ export default function IAView() {
                             <Send className="w-4 h-4" />
                         </button>
                         <p className="text-center text-[10px] text-[var(--text-muted)] mt-2 font-bold uppercase tracking-widest opacity-60">
-                            La IA clasifica tu consulta automáticamente: SQL · Vectores · Híbrido
+                            La IA clasifica tu consulta automáticamente: Cypher · Vectores · Híbrido
                         </p>
                     </form>
                 </div>
@@ -233,7 +237,7 @@ export default function IAView() {
     );
 }
 
-function DetailsSection({ query, results, vectorQuery }: { query?: string; results?: any[]; vectorQuery?: string }) {
+function DetailsSection({ query, results, vectorQuery, intent }: { query?: string | any; results?: any[]; vectorQuery?: string; intent?: string }) {
     const [isOpen, setIsOpen] = useState(false);
 
     return (
@@ -250,9 +254,9 @@ function DetailsSection({ query, results, vectorQuery }: { query?: string; resul
                 <div className="mt-2 p-3 bg-[var(--background)] rounded-lg border border-[var(--border)] text-xs text-[var(--text-secondary)] shadow-sm">
                     {query && (
                         <div className="mb-2.5">
-                            <strong className="text-[var(--text-primary)] block mb-1 text-[11px] uppercase tracking-wider font-extrabold">Consulta SQL:</strong>
+                            <strong className="text-[var(--text-primary)] block mb-1 text-[11px] uppercase tracking-wider font-extrabold">Consulta {intent === 'mql' ? 'MQL' : intent === 'cypher' ? 'Cypher' : 'SQL'}:</strong>
                             <pre className="bg-slate-900 text-slate-300 p-3 rounded-md overflow-x-auto text-[10px] font-mono leading-relaxed border border-slate-700 shadow-inner">
-                                {query}
+                                {typeof query === 'object' ? JSON.stringify(query, null, 2) : query}
                             </pre>
                         </div>
                     )}

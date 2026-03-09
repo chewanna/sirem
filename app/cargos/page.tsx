@@ -7,6 +7,11 @@ const Cargos = () => {
   const { state } = useAppState();
   const [cargos, setCargos] = useState<any[]>([]);
   const [cargando, setCargando] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const idSeleccionado = state.idPersonalSeleccionado;
@@ -35,6 +40,10 @@ const Cargos = () => {
 
     fetchCargos();
   }, [state.idPersonalSeleccionado]);
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <section>
@@ -81,8 +90,8 @@ const Cargos = () => {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  cargos.map((c) => (
-                    <TableRow key={c.id_cargo} className="hover:bg-[var(--surface-alt)] text-[var(--text-primary)]">
+                  cargos.map((c, i) => (
+                    <TableRow key={c.id || i} className="hover:bg-[var(--surface-alt)] text-[var(--text-primary)]">
                       <TableCell>{c.grado || '-'}</TableCell>
                       <TableCell>{c.fecha_cargo ? new Date(c.fecha_cargo).toLocaleDateString('es-MX') : '-'}</TableCell>
                       <TableCell>{c.cargo || '-'}</TableCell>

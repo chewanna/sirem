@@ -1,59 +1,107 @@
 import React from "react";
-import { prisma } from "@/lib/prisma";
+import { driver } from "@/lib/neo4j";
 import { Users, Activity, Heart, ShieldCheck, Clock, FileText, Medal, Crosshair } from "lucide-react";
 
 // Forzar renderizado dinámico para que los datos siempre estén frescos
 export const dynamic = "force-dynamic";
 
 export default async function Page() {
-  // Realizar todas las consultas a la base de datos en paralelo
-  const [
-    totalPersonal,
-    totalMovimientos,
-    totalFamiliares,
-    totalUsuarios,
-    ultimosMovimientos,
-    armasConteo,
-    gradosConteo
-  ] = await Promise.all([
-    prisma.personalMilitar.count(),
-    prisma.movimiento.count(),
-    prisma.familiar.count(),
-    prisma.usuario.count(),
-    prisma.movimiento.findMany({
-      take: 5,
-      orderBy: { fecha_mov: 'desc' },
-      include: {
+
+  let totalPersonal = 0;
+  let totalMovimientos = 0;
+  let totalFamiliares = 0;
+  let totalUsuarios = 0;
+  let ultimosMovimientos: any[] = [];
+  let armasFiltradasYOrdenadas: any[] = [];
+  let gradosFiltradosYOrdenados: any[] = [];
+
+  try {
+    // Función auxiliar para tener una sesión por consulta
+    const runQuery = async (query: string) => {
+      const s = driver.session();
+      try {
+        return await s.run(query);
+      } finally {
+        await s.close();
+      }
+    };
+
+    // Realizar todas las consultas a la base de datos en paralelo
+    const [
+      personalRes,
+      movimientosRes,
+      familiaresRes,
+      usuariosRes,
+      ultimosMovsRes,
+      armasRes,
+      gradosRes
+    ] = await Promise.all([
+      runQuery('MATCH (n:PersonalMilitar) RETURN count(n) AS count'),
+      runQuery('MATCH (n:Movimiento) RETURN count(n) AS count'),
+      runQuery('MATCH ()-[r:TIENE_FAMILIAR]->() RETURN count(r) AS count'),
+      runQuery('MATCH (n:Usuario) RETURN count(n) AS count'),
+      runQuery(`
+        MATCH (p:PersonalMilitar)-[:TUVO_MOVIMIENTO]->(m:Movimiento)
+        OPTIONAL MATCH (p)-[:TIENE_GRADO]->(g:Grado)
+        RETURN m, p{.*}, g.nombre_grado AS grado_nombre
+        ORDER BY m.fecha_mov DESC LIMIT 5
+      `),
+      runQuery(`
+        MATCH (a:ArmaServicio)
+        OPTIONAL MATCH (p:PersonalMilitar)-[:PERTENECE_A_ARMA]->(a)
+        WITH a, count(p) as personalCount
+        WHERE personalCount > 0
+        RETURN a.nombre_servicio AS nombre_servicio, personalCount AS count
+        ORDER BY count DESC
+      `),
+      runQuery(`
+        MATCH (g:Grado)
+        OPTIONAL MATCH (p:PersonalMilitar)-[:TIENE_GRADO]->(g)
+        WITH g, count(p) as personalCount
+        WHERE personalCount > 0
+        RETURN g.nombre_grado AS nombre_grado, g.abreviatura AS abreviatura, personalCount AS count
+        ORDER BY count DESC
+      `)
+    ]);
+
+    totalPersonal = personalRes.records[0].get('count').toNumber();
+    totalMovimientos = movimientosRes.records[0].get('count').toNumber();
+    totalFamiliares = familiaresRes.records[0].get('count').toNumber();
+    totalUsuarios = usuariosRes.records[0].get('count').toNumber();
+
+    ultimosMovimientos = ultimosMovsRes.records.map(record => {
+      const m = record.get('m').properties;
+      const p = record.get('p');
+      const grado_nombre = record.get('grado_nombre');
+      return {
+        id_movimiento: m.id,
+        tipo: m.tipo,
+        unidad: m.unidad,
+        fecha_mov: m.fecha_mov,
+        grado: grado_nombre || m.grado,
         personal: {
-          select: { nombre: true, apellido_paterno: true, apellido_materno: true, matricula: true }
+          nombre: p.nombre,
+          apellido_paterno: p.apellido_paterno,
+          apellido_materno: p.apellido_materno,
+          matricula: p.matricula
         }
-      }
-    }),
-    // Traer todos los servicios de armas y contar cuántos miliares tienen asignados
-    prisma.catArmaServicio.findMany({
-      select: {
-        nombre_servicio: true,
-        _count: { select: { personal: true } }
-      }
-    }),
-    // Traer todos los grados y contar cuántos militares los tienen
-    prisma.catGrado.findMany({
-      select: {
-        nombre_grado: true,
-        abreviatura: true,
-        _count: { select: { personal: true } }
-      }
-    })
-  ]);
+      };
+    });
 
-  // Limpiar y ordenar de mayor a menor utilizando JavaScript
-  const armasFiltradasYOrdenadas = armasConteo
-    .filter(a => a._count.personal > 0)
-    .sort((a, b) => b._count.personal - a._count.personal);
+    armasFiltradasYOrdenadas = armasRes.records.map(record => ({
+      nombre_servicio: record.get('nombre_servicio'),
+      _count: { personal: record.get('count').toNumber() }
+    }));
 
-  const gradosFiltradosYOrdenados = gradosConteo
-    .filter(g => g._count.personal > 0)
-    .sort((a, b) => b._count.personal - a._count.personal);
+    gradosFiltradosYOrdenados = gradosRes.records.map(record => ({
+      nombre_grado: record.get('nombre_grado'),
+      abreviatura: record.get('abreviatura'),
+      _count: { personal: record.get('count').toNumber() }
+    }));
+
+  } catch (error) {
+    console.error("Error cargando dashboard:", error);
+  }
 
   const stats = [
     { label: "Total de Personal", value: totalPersonal.toLocaleString(), icon: Users, color: "bg-blue-500", lightColor: "bg-blue-100", textColor: "text-blue-600" },
@@ -113,7 +161,7 @@ export default async function Page() {
                   <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                     <div
                       className="bg-emerald-500 h-2 rounded-full"
-                      style={{ width: `${Math.max(2, (arma._count.personal / totalPersonal) * 100)}%` }}
+                      style={{ width: `${Math.max(2, (arma._count.personal / (totalPersonal || 1)) * 100)}%` }}
                     />
                   </div>
                 </div>
@@ -143,7 +191,7 @@ export default async function Page() {
                   <li key={index} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700 font-bold text-sm">
-                        {grado.abreviatura || grado.nombre_grado.charAt(0)}
+                        {grado.abreviatura || grado.nombre_grado?.charAt(0) || '?'}
                       </div>
                       <span className="font-medium text-slate-700">{grado.nombre_grado}</span>
                     </div>

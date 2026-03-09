@@ -1,58 +1,60 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { driver } from "@/lib/neo4j";
+
+export const dynamic = "force-dynamic";
 
 // GET /api/listados
 export async function GET() {
+    const session = driver.session();
     try {
-        const listados = await prisma.listado.findMany({
-            orderBy: { fecha: "desc" },
-            include: {
-                personal: true,
-            },
+        const result = await session.run(`
+            MATCH (l:Listado)
+            OPTIONAL MATCH (l)-[r:TIENE_PERSONAL]->(p:PersonalMilitar)
+            OPTIONAL MATCH (p)-[:TIENE_GRADO]->(g:Grado)
+            OPTIONAL MATCH (p)-[:PERTENECE_A_ARMA]->(a:ArmaServicio)
+            WITH l, p, r, g, a
+            ORDER BY l.fecha DESC, r.orden ASC
+            RETURN l, collect(
+                CASE WHEN p IS NULL THEN null ELSE p{
+                    .*, 
+                    id_personal_militar: p.id,
+                    orden: r.orden,
+                    grado: g{.*},
+                    arma_servicio: a{.*}
+                } END
+            ) AS personal
+            ORDER BY l.fecha DESC
+        `);
+
+        const listados = result.records.map((record: any) => {
+            const lProps = record.get('l').properties;
+            const personalRaw = record.get('personal') || [];
+            // Remove nulls if any
+            const personal = personalRaw.filter((p: any) => p != null);
+
+            return {
+                id_listado: lProps.id,
+                nombre: lProps.nombre,
+                fecha: lProps.fecha,
+                personal,
+            };
         });
 
-        const listadosConPersonal = await Promise.all(
-            listados.map(async (listado) => {
-                const listadoPersonalOrdenado = listado.personal.sort((a, b) => a.orden - b.orden);
-                const ids = listadoPersonalOrdenado.map((lp) => lp.id_personal_militar);
-
-                const personalDesordenado = await prisma.personalMilitar.findMany({
-                    where: { id_personal_militar: { in: ids } },
-                    select: {
-                        id_personal_militar: true,
-                        matricula: true,
-                        nombre: true,
-                        apellido_paterno: true,
-                        apellido_materno: true,
-                        grado: { select: { abreviatura: true } },
-                        arma_servicio: { select: { nombre_servicio: true } },
-                    },
-                });
-
-                // Mapear al personal devuelto ordenándolo de acuerdo al identificador original
-                const personal = ids.map(id => personalDesordenado.find(p => p.id_personal_militar === id)).filter(Boolean);
-
-                return {
-                    id_listado: listado.id_listado,
-                    nombre: listado.nombre,
-                    fecha: listado.fecha,
-                    personal,
-                };
-            })
-        );
-
-        return NextResponse.json(listadosConPersonal);
+        return NextResponse.json(listados);
     } catch (error) {
         console.error("Error al obtener listados:", error);
         return NextResponse.json({ error: "Error al obtener listados" }, { status: 500 });
+    } finally {
+        await session.close();
     }
 }
 
 // POST /api/listados
 export async function POST(request: Request) {
+    const session = driver.session();
     try {
         const body = await request.json();
-        const { nombre, personalIds } = body as { nombre: string; personalIds: number[] };
+        const { nombre, personalIds } = body as { nombre: string; personalIds: string[] };
 
         if (!nombre?.trim()) {
             return NextResponse.json({ error: "El nombre del listado es requerido" }, { status: 400 });
@@ -61,21 +63,37 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "El listado no puede estar vacío" }, { status: 400 });
         }
 
-        const listado = await prisma.listado.create({
-            data: {
-                nombre: nombre.trim(),
-                personal: {
-                    create: personalIds.map((id, idx) => ({
-                        id_personal_militar: id,
-                        orden: idx
-                    })),
-                },
-            },
+        const id_listado = crypto.randomUUID();
+        const fecha = new Date().toISOString();
+
+        // format personalIds to objects with order
+        const personalData = personalIds.map((id, idx) => ({ id, orden: idx }));
+
+        const result = await session.run(`
+            CREATE (l:Listado {
+                id: $id_listado,
+                nombre: $nombre,
+                fecha: $fecha
+            })
+            WITH l
+            UNWIND $personalData AS person
+            MATCH (p:PersonalMilitar {id: person.id})
+            CREATE (l)-[:TIENE_PERSONAL {orden: person.orden}]->(p)
+            RETURN l
+        `, {
+            id_listado,
+            nombre: nombre.trim(),
+            fecha,
+            personalData
         });
 
-        return NextResponse.json(listado, { status: 201 });
+        const listadoCreado = result.records[0].get('l').properties;
+
+        return NextResponse.json(listadoCreado, { status: 201 });
     } catch (error) {
         console.error("Error al guardar listado:", error);
         return NextResponse.json({ error: "Error al guardar el listado" }, { status: 500 });
+    } finally {
+        await session.close();
     }
 }

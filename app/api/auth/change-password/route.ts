@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { driver } from '@/lib/neo4j';
 import * as bcrypt from 'bcryptjs';
 import { getUserFromToken } from '@/lib/auth';
 
-const prisma = new PrismaClient();
-
 export async function POST(request: Request) {
+    const session = driver.session();
     try {
         const { currentPassword, newPassword } = await request.json();
 
@@ -17,25 +16,25 @@ export async function POST(request: Request) {
         }
 
         // Obtener el usuario de la sesión actual
-        const session = await getUserFromToken();
+        const userInfo = await getUserFromToken();
 
-        if (!session || !session.id) {
+        if (!userInfo || !userInfo.id) {
             return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
         }
 
-        const userId = session.id;
+        const userId = userInfo.id;
 
         // Buscar al usuario en la base de datos
-        const user = await prisma.usuario.findUnique({
-            where: { id_usuario: userId }
-        });
+        const result = await session.run(`MATCH (u:Usuario {id: $userId}) RETURN u`, { userId });
 
-        if (!user) {
+        if (result.records.length === 0) {
             return NextResponse.json({ message: 'Usuario no encontrado' }, { status: 404 });
         }
 
+        const user = result.records[0].get('u').properties;
+
         // Verificar la contraseña actual
-        const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+        const isValidPassword = await bcrypt.compare(currentPassword, user.password || '');
 
         if (!isValidPassword) {
             return NextResponse.json({ message: 'La contraseña actual es incorrecta' }, { status: 400 });
@@ -45,10 +44,11 @@ export async function POST(request: Request) {
         const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
         // Actualizar la contraseña en la base de datos
-        await prisma.usuario.update({
-            where: { id_usuario: userId },
-            data: { password: hashedNewPassword }
-        });
+        await session.run(`
+            MATCH (u:Usuario {id: $userId})
+            SET u.password = $hashedNewPassword
+            RETURN u
+        `, { userId, hashedNewPassword });
 
         return NextResponse.json(
             { message: 'Contraseña actualizada correctamente' },
@@ -62,6 +62,6 @@ export async function POST(request: Request) {
             { status: 500 }
         );
     } finally {
-        await prisma.$disconnect();
+        await session.close();
     }
 }

@@ -1,37 +1,70 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { driver } from '@/lib/neo4j';
 import { getUserFromToken } from '@/lib/auth';
 import * as bcrypt from 'bcryptjs';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-    const session = await getUserFromToken();
+    const userInfo = await getUserFromToken();
+    const session = driver.session();
+
     try {
-        const users = await (prisma as any).usuario.findMany({
-            include: {
-                role: true,
-                mesa: true,
-                grupo: true,
-                subseccion: true
-            },
-            orderBy: { id_usuario: 'asc' }
+        const usersResult = await session.run(`
+            MATCH (u:Usuario)
+            OPTIONAL MATCH (u)-[:TIENE_ROL]->(r:Role)
+            OPTIONAL MATCH (u)-[:ASIGNADO_A]->(m:Mesa)
+            RETURN u, r, m ORDER BY u.id ASC
+        `);
+
+        const users = usersResult.records.map(record => {
+            const user = record.get('u').properties;
+            const role = record.get('r')?.properties;
+            const mesa = record.get('m')?.properties;
+            return {
+                ...user,
+                id_usuario: user.id || user.id_usuario,
+                role: role || null,
+                mesa: mesa || null
+            };
         });
 
-        const roles = await (prisma as any).role.findMany();
-        const mesas = await (prisma as any).mesa.findMany();
-        const grupos = await (prisma as any).grupo.findMany();
-        const subsecciones = await (prisma as any).subseccion.findMany();
+        const rolesResult = await session.run('MATCH (n:Role) RETURN n');
+        const roles = rolesResult.records.map(r => {
+            const p = r.get('n').properties;
+            return { ...p, id_role: p.id };
+        });
+
+        const mesasResult = await session.run('MATCH (n:Mesa) RETURN n');
+        const mesas = mesasResult.records.map(r => {
+            const p = r.get('n').properties;
+            return { ...p, mesa_id: p.id };
+        });
+
+        const gruposResult = await session.run('MATCH (n:Grupo) RETURN n');
+        const grupos = gruposResult.records.map(r => {
+            const p = r.get('n').properties;
+            return { ...p, grupo_id: p.id };
+        });
+
+        const subseccionesResult = await session.run('MATCH (n:Subseccion) RETURN n');
+        const subsecciones = subseccionesResult.records.map(r => {
+            const p = r.get('n').properties;
+            return { ...p, id_subseccion: p.id };
+        });
 
         return NextResponse.json({ users, roles, mesas, grupos, subsecciones });
     } catch (e) {
         console.error(e);
         return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+    } finally {
+        await session.close();
     }
 }
 
 export async function POST(req: Request) {
-    const session = await getUserFromToken();
+    const userInfo = await getUserFromToken();
+    const session = driver.session();
 
     try {
         const body = await req.json();
@@ -42,45 +75,53 @@ export async function POST(req: Request) {
         }
 
         // Check if username already exists
-        const existing = await (prisma as any).usuario.findUnique({
-            where: { username }
-        });
+        const existingResult = await session.run(`MATCH (u:Usuario {username: $username}) RETURN u`, { username });
 
-        if (existing) {
+        if (existingResult.records.length > 0) {
             return NextResponse.json({ error: 'El nombre de usuario ya existe.' }, { status: 400 });
         }
 
         const hashed = await bcrypt.hash(password || '1234', 10);
+        const newId = crypto.randomUUID();
 
-        let finalGrupo = id_grupo ? parseInt(id_grupo) : null;
-        let finalSubsec = id_subsec ? parseInt(id_subsec) : null;
+        await session.run(`
+            CREATE (u:Usuario {
+                id: $newId,
+                username: $username,
+                password: $hashed,
+                nombre: $nombre,
+                activo: true
+            })
+        `, {
+            newId,
+            username,
+            hashed,
+            nombre: nombre || null
+        });
 
-        // Auto-asignar grupo y subsección si se provee una mesa
-        if (id_mesa) {
-            const mesa = await (prisma as any).mesa.findUnique({
-                where: { mesa_id: parseInt(id_mesa) }
-            });
-            if (mesa) {
-                finalGrupo = finalGrupo || mesa.grupopert;
-                finalSubsec = finalSubsec || mesa.subsecpert;
-            }
+        if (id_role) {
+            await session.run(`
+                MATCH (u:Usuario {id: $newId}), (r:Role {id: $id_role})
+                CREATE (u)-[:TIENE_ROL]->(r)
+            `, { newId, id_role });
         }
 
-        const newUser = await (prisma as any).usuario.create({
-            data: {
-                username,
-                password: hashed,
-                nombre: nombre || null,
-                id_role: parseInt(id_role) || 3,
-                id_mesa: id_mesa ? parseInt(id_mesa) : null,
-                id_grupo: finalGrupo,
-                id_subsec: finalSubsec
-            }
-        });
+        if (id_mesa) {
+            await session.run(`
+                MATCH (u:Usuario {id: $newId}), (m:Mesa {id: $id_mesa})
+                CREATE (u)-[:ASIGNADO_A]->(m)
+            `, { newId, id_mesa });
+        }
+
+        // Recuperar el usuario recién creado
+        const newResult = await session.run(`MATCH (u:Usuario {id: $newId}) RETURN u`, { newId });
+        const newUser = newResult.records[0].get('u').properties;
 
         return NextResponse.json({ ...newUser, message: 'Usuario creado correctamente' }, { status: 201 });
     } catch (e: any) {
         console.error('Error al crear usuario:', e);
         return NextResponse.json({ error: 'Error al crear usuario', details: e.message }, { status: 500 });
+    } finally {
+        await session.close();
     }
 }

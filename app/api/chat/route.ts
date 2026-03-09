@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { driver } from '@/lib/neo4j';
 
-const prisma = new PrismaClient();
 
 // Puedes configurar aquí de qué proveedor usar Llama. 
 // Por defecto, usa Groq para rapidez si tienes GROQ_API_KEY. 
@@ -12,50 +11,76 @@ const USE_OLLAMA = process.env.USE_OLLAMA === 'true' || false;
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434/api/chat';
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 
-// Esquema resumido para que el LLM lo entienda y sepa qué tablas consultar
+// Esquema EXACTO de la base de datos Neo4j (nombres reales de propiedades)
 const DB_SCHEMA = `
-Tablas y Columnas (PostgreSQL):
-- personal_militar: id_personal_militar, matricula (unique), curp, rfc, nombre, apellido_paterno, apellido_materno, sexo, estado_civil, id_grado, id_arma_servicio, id_organismo, id_zona_militar, id_region_militar, fecha_nacimiento, fecha_ingreso, situacion, especialidad, profesion.
-- cat_grado: id_grado, nombre_grado, abreviatura
-- cat_arma_servicio: id_arma_servicio, nombre_servicio (Ej: INFANTERIA, CABALLERIA, JUSTICIA)
-- cat_organismo: id_organismo, nombre_organismo, tipo_organismo, campo_militar
-- cat_zona_militar: id_zona_militar, nombre_zona_militar, numero_zona_militar
-- cat_region_militar: id_region_militar, nombre_region_militar, numero_region_militar
-- conducta: id_conducta, id_personal_militar, tipo (EXCELENTE, BUENA, REGULAR, MALA), descripcion, fecha
-- cargo: id_cargo, id_personal_militar, cargo, unidad, fecha_cargo
-- historial_ascensos: id_historial_ascenso, id_personal_militar, id_grado, fecha_ascenso
-- historial_adscripcion: id_adscripcion, id_personal_militar, id_organismo, fecha_inicio, fecha_fin
-- familiar: id_familiar, id_personal_militar, nombre, parentesco, militar (boolean), matricula
+Nodos principales (Neo4j Grafos):
+- PersonalMilitar: id, matricula, curp, rfc, nombre, apellido_paterno, apellido_materno, sexo, situacion, estado_civil, fecha_nacimiento, fecha_ingreso, especialidad.
+- Grado: id, nombre_grado, abreviatura
+- ArmaServicio: id, nombre_servicio
+- Organismo: id, nombre_organismo, campo_militar
+- ZonaMilitar: id, nombre_zona_militar, numero
+- RegionMilitar: id, nombre_region_militar, numero
+- Conducta: id, tipo, descripcion, fecha
+- Cargo: id, cargo, unidad, ubicacion, fecha_cargo
+- Movimiento: id, tipo, grado, unidad, fecha_mov
 
-Relaciones Principales:
-- personal_militar vincula con: cat_grado, cat_arma_servicio, cat_organismo, cat_zona_militar, cat_region_militar.
-- conducta, cargo, historial_ascensos, historial_adscripcion y familiar referencian a personal_militar.id_personal_militar.
+Relaciones: 
+- (PersonalMilitar)-[:TIENE_GRADO]->(Grado)
+- (PersonalMilitar)-[:PERTENECE_A_ARMA]->(ArmaServicio)
+- (PersonalMilitar)-[:ADSCRITO_A]->(Organismo)
+- (PersonalMilitar)-[:EN_ZONA]->(ZonaMilitar)
+- (PersonalMilitar)-[:EN_REGION]->(RegionMilitar)
+- (PersonalMilitar)-[:TIENE_CONDUCTA]->(Conducta)
+- (PersonalMilitar)-[:DESEMPENO_CARGO]->(Cargo)
+- (PersonalMilitar)-[:TUVO_MOVIMIENTO]->(Movimiento)
+
+IMPORTANTE - Nombres exactos de propiedades:
+- Los grados usan "nombre_grado" (NO "nombre")
+- Las armas/servicios usan "nombre_servicio" (NO "nombre")
+- Los organismos usan "nombre_organismo" (NO "nombre")
+- Las zonas militares usan "nombre_zona_militar" (NO "nombre")
+- Las regiones militares usan "nombre_region_militar" (NO "nombre")
 `;
 
 async function getLlamaResponse(messages: any[]) {
     const systemPrompt = `Eres el asistente experto del SIREM (Sistema de Recursos Humanos Militar).
-    Tu misión es traducir peticiones de lenguaje natural a consultas SQL precisas para PostgreSQL.
+Tu misión es traducir peticiones de lenguaje natural a consultas Cypher para ejecutarlas en Neo4j.
 
-    ESTRUCTURA DE BASE DE DATOS:
-    ${DB_SCHEMA}
+ESTRUCTURA DE BASE DE DATOS:
+${DB_SCHEMA}
 
-    REGLAS CRÍTICAS DE RESPUESTA:
-    1. Responde ÚNICAMENTE en JSON plano.
-    2. El "intent" debe ser "sql" si requiere datos, o "conversational" si es saludo/ayuda general.
-    3. En "synthesis", confirma lo que vas a buscar (ej: "Buscando oficiales de Infantería en la 1/a Región...").
-    4. SQL: 
-       - SIEMPRE usa ILIKE para textos (ej: p.nombre ILIKE '%juan%').
-       - SIEMPRE limita a 10 resultados (LIMIT 10) a menos que se pida un COUNT.
-       - Usa alias claros (p para personal_militar, g para cat_grado, etc.).
-       - Para buscar por nombre completo, concatena: (nombre || ' ' || apellido_paterno || ' ' || apellido_materno).
-       - Si piden "última conducta" o "cargo actual", ordena por fecha DESC.
+REGLAS CRÍTICAS DE RESPUESTA:
+1. Responde ÚNICAMENTE en JSON plano, sin bloques de código markdown.
+2. El "intent" debe ser "cypher" si requiere datos de la base de datos, o "conversational" si es un saludo, ayuda o pregunta general.
+3. En "synthesis", explica brevemente lo que vas a buscar o responder.
+4. Para consultas Cypher:
+   - SIEMPRE usa LIMIT 10 al final.
+   - Para búsquedas de texto parcial usa: WHERE p.nombre =~ '(?i).*texto.*'
+   - Para devolver personal con sus relaciones, usa este patrón:
+     MATCH (p:PersonalMilitar)
+     OPTIONAL MATCH (p)-[:TIENE_GRADO]->(g:Grado)
+     OPTIONAL MATCH (p)-[:PERTENECE_A_ARMA]->(a:ArmaServicio)
+     OPTIONAL MATCH (p)-[:ADSCRITO_A]->(o:Organismo)
+     RETURN p.nombre AS nombre, p.apellido_paterno AS apellido_paterno, p.apellido_materno AS apellido_materno,
+            p.matricula AS matricula, p.curp AS curp, p.sexo AS sexo, p.situacion AS situacion,
+            g.nombre_grado AS grado, a.nombre_servicio AS arma, o.nombre_organismo AS organismo
+     LIMIT 10
+   - SIEMPRE devuelve propiedades individuales con alias descriptivos (AS nombre, AS grado, etc.), NO objetos completos como p{.*}
+   - NUNCA uses p{.*} ni RETURN p — siempre devuelve campos específicos con AS
 
-    ESTRUCTURA JSON:
-    {
-      "intent": "sql" | "conversational",
-      "sql_query": "SELECT ... LIMIT 10",
-      "synthesis": "Explicación breve de la acción."
-    }`;
+ESTRUCTURA JSON SOLICITADA EXACTA:
+{
+  "intent": "cypher",
+  "cypher_query": "MATCH (p:PersonalMilitar) WHERE p.nombre =~ '(?i).*yael.*' OPTIONAL MATCH (p)-[:TIENE_GRADO]->(g:Grado) RETURN p.nombre AS nombre, p.apellido_paterno AS apellido_paterno, p.matricula AS matricula, g.nombre_grado AS grado LIMIT 10",
+  "synthesis": "Buscando información del personal militar llamado Yael..."
+}
+
+Para respuestas conversacionales:
+{
+  "intent": "conversational",
+  "cypher_query": null,
+  "synthesis": "Tu respuesta aquí"
+}`;
 
     const formattedMessages = [
         { role: 'system', content: systemPrompt },
@@ -68,12 +93,10 @@ async function getLlamaResponse(messages: any[]) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4', // El modelo cargado en vLLM
+                model: 'hugging-quants/Meta-Llama-3.1-8B-Instruct-AWQ-INT4',
                 messages: formattedMessages,
                 stream: false,
                 temperature: 0.1,
-                // vLLM no soporta response_format json_object por defecto en todos los modelos,
-                // aseguramos que el prompt insista en JSON
             })
         });
 
@@ -83,10 +106,12 @@ async function getLlamaResponse(messages: any[]) {
         }
         const data = await response.json();
 
-        // vLLM a veces puede retornar código markdown ```json {...} ```
         let content = data.choices[0].message.content.trim();
-        if (content.startsWith("\`\`\`json")) {
-            content = content.replace(/\`\`\`json/, "").replace(/\`\`\`$/, "").trim();
+        // Limpiar posible markdown
+        if (content.startsWith("```json")) {
+            content = content.replace(/```json/, "").replace(/```$/, "").trim();
+        } else if (content.startsWith("```")) {
+            content = content.replace(/```/, "").replace(/```$/, "").trim();
         }
         return JSON.parse(content);
 
@@ -96,7 +121,7 @@ async function getLlamaResponse(messages: any[]) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                model: 'llama3', // o llama3.2 o llama2 según lo que tengas
+                model: 'llama3',
                 messages: formattedMessages,
                 stream: false,
                 format: 'json'
@@ -120,10 +145,10 @@ async function getLlamaResponse(messages: any[]) {
                 'Authorization': `Bearer ${GROQ_API_KEY}`
             },
             body: JSON.stringify({
-                model: 'llama3-70b-8192', // Modelo Llama 3 en Groq
+                model: 'llama3-70b-8192',
                 messages: formattedMessages,
                 response_format: { type: "json_object" },
-                temperature: 0.1 // Baja temperatura para consultas precisas
+                temperature: 0.1
             })
         });
 
@@ -137,11 +162,67 @@ async function getLlamaResponse(messages: any[]) {
     }
 }
 
-// Convertir bigint a string para JSON.stringify si es necesario
-const serializeData = (data: any) => {
-    return JSON.parse(JSON.stringify(data, (key, value) =>
-        typeof value === 'bigint' ? value.toString() : value
-    ));
+// Serializar datos de Neo4j: convierte Neo4j Integer a number y aplana objetos
+const serializeNeo4jValue = (value: any): any => {
+    if (value === null || value === undefined) return null;
+
+    // Neo4j Integer (tiene propiedades low y high)
+    if (typeof value === 'object' && value.low !== undefined && value.high !== undefined) {
+        return value.low; // Para números que caben en 32 bits
+    }
+
+    // BigInt nativo
+    if (typeof value === 'bigint') {
+        return Number(value);
+    }
+
+    // Neo4j Node/Relationship — extraer properties
+    if (typeof value === 'object' && value.properties) {
+        const flat: any = {};
+        for (const [k, v] of Object.entries(value.properties)) {
+            flat[k] = serializeNeo4jValue(v);
+        }
+        return flat;
+    }
+
+    // Arreglos
+    if (Array.isArray(value)) {
+        return value.map(serializeNeo4jValue);
+    }
+
+    // Objetos planos
+    if (typeof value === 'object' && !(value instanceof Date)) {
+        const flat: any = {};
+        for (const [k, v] of Object.entries(value)) {
+            flat[k] = serializeNeo4jValue(v);
+        }
+        return flat;
+    }
+
+    return value;
+};
+
+// Aplanar resultados: si un record tiene una sola key con valor objeto, expandirlo
+const flattenResults = (results: any[]): any[] => {
+    return results.map(row => {
+        const keys = Object.keys(row);
+        // Si solo hay una key y su valor es un objeto, expandirlo
+        if (keys.length === 1 && typeof row[keys[0]] === 'object' && row[keys[0]] !== null && !Array.isArray(row[keys[0]])) {
+            return row[keys[0]];
+        }
+        // Si hay keys con valores que son objetos, expandirlos con prefijo
+        const flat: any = {};
+        for (const [key, val] of Object.entries(row)) {
+            if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+                for (const [subKey, subVal] of Object.entries(val as Record<string, any>)) {
+                    flat[subKey] = subVal;
+                }
+            } else {
+                flat[key] = val;
+            }
+        }
+        return flat;
+    });
 };
 
 export async function POST(req: Request) {
@@ -152,47 +233,69 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'No messages provided' }, { status: 400 });
         }
 
-        // 1. Obtención de la intención y query SQL del LLM (Llama)
-        const llamaResult = await getLlamaResponse(messages);
+        // 1. Obtención de la intención y query Cypher del LLM (Llama)
+        let llamaResult;
+        try {
+            llamaResult = await getLlamaResponse(messages);
+        } catch (llmError: any) {
+            console.error("Error LLM:", llmError);
+            return NextResponse.json({
+                synthesis: "Error al conectar con el modelo de IA. Verifica que el servicio esté activo.",
+                intent: 'conversational',
+                query: null,
+                results: [],
+                error: llmError.message
+            });
+        }
 
         let results: any[] = [];
-        let finalSynthesis = llamaResult.synthesis;
-        let queryExecuted = llamaResult.sql_query;
+        let finalSynthesis = llamaResult.synthesis || '';
+        let queryExecuted = llamaResult.cypher_query;
 
-        // 2. Si Llama determinó que se debe consultar SQL, ejecutamos usando Prisma
-        if (llamaResult.intent === 'sql' && llamaResult.sql_query) {
+        // 2. Si el LLM determinó que se debe consultar Neo4j, ejecutamos la query Cypher
+        if (llamaResult.intent === 'cypher' && llamaResult.cypher_query) {
+            const session = driver.session();
             try {
-                // Asegurar que solo sea un SELECT (por seguridad mínima)
-                if (llamaResult.sql_query.trim().toUpperCase().startsWith('SELECT')) {
-                    const rawResults = await prisma.$queryRawUnsafe(llamaResult.sql_query);
-                    results = serializeData(rawResults) as any[];
+                const rawResponse = await session.run(llamaResult.cypher_query);
 
-                    // Opción adicional: En un sistema en producción se le pasa el 'results' a Llama de nuevo
-                    // para que sintetice la respuesta final, pero aquí armamos la síntesis como preview:
-                    const count = results.length;
-                    finalSynthesis = count > 0
-                        ? `Aquí tienes ${count} candidato(s) propuestos basados en los criterios solicitados.\n\n` + finalSynthesis
-                        : `No logré encontrar opciones con esos parámetros en la base de datos.`;
+                let dataExtracted: any[] = [];
+                for (const record of rawResponse.records) {
+                    const obj: any = {};
+                    record.keys.forEach((key: any) => {
+                        const rawVal = record.get(key);
+                        obj[key] = serializeNeo4jValue(rawVal);
+                    });
+                    dataExtracted.push(obj);
+                }
+
+                // Aplanar resultados para que la tabla los muestre correctamente
+                results = flattenResults(dataExtracted);
+
+                const count = results.length;
+                if (count > 0) {
+                    finalSynthesis = `Se encontraron ${count} resultado(s).\n\n${finalSynthesis}`;
                 } else {
-                    finalSynthesis = "Consulta rechazada por seguridad: Solo se permiten sentencias SELECT.";
-                    queryExecuted = undefined;
+                    finalSynthesis = `No se encontraron resultados con esos criterios en la base de datos.`;
                 }
             } catch (dbError: any) {
-                console.error("Error SQL:", dbError);
+                console.error("Error Cypher:", dbError);
+                // Devolver el error detallado para debugging pero con mensaje amigable
                 return NextResponse.json({
-                    synthesis: "Hubo un error al interpretar o ejecutar los criterios de la base de datos.",
-                    intent: 'sql',
-                    query: llamaResult.sql_query,
-                    error: dbError.message || 'Error de base de datos'
+                    synthesis: `Hubo un error al ejecutar la consulta en Neo4j. Es posible que la consulta generada tenga un error de sintaxis.\n\nDetalle: ${dbError.message}`,
+                    intent: 'cypher',
+                    query: llamaResult.cypher_query,
+                    results: [],
+                    error: dbError.message
                 });
+            } finally {
+                await session.close();
             }
         }
 
-        // Return de acuerdo al formato esperado por tu frontend IA
         return NextResponse.json({
             synthesis: finalSynthesis || 'Aquí están los resultados generados por el modelo de IA.',
-            intent: llamaResult.intent === 'sql' ? 'sql' : 'conversational',
-            query: queryExecuted,
+            intent: llamaResult.intent === 'cypher' ? 'cypher' : 'conversational',
+            query: queryExecuted || null,
             results: results
         });
 

@@ -179,7 +179,7 @@ export default function UsuariosSettings() {
                             </div>
                             <select
                                 value={u.id_role}
-                                onChange={(e) => authFetch(`/api/users/${u.id_usuario}`, 'PUT', { id_role: parseInt(e.target.value), id_mesa: u.id_mesa, id_grupo: u.id_grupo, id_subsec: u.id_subsec })}
+                                onChange={(e) => authFetch(`/api/users/${u.id_usuario}`, 'PUT', { id_role: e.target.value, id_mesa: u.id_mesa, id_grupo: u.id_grupo, id_subsec: u.id_subsec })}
                                 className="p-2 border rounded text-[10px]"
                             >
                                 {roles.map((r: any) => <option key={r.id_role} value={r.id_role}>{r.nombre_role}</option>)}

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { driver } from '@/lib/neo4j'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,25 +12,28 @@ export async function GET(
     }
 
     const idStr = (await params).id
-    const id = parseInt(idStr)
+    const id = idStr
 
-    if (isNaN(id)) {
+    if (!id) {
         return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
     }
 
+    const session = driver.session();
     try {
-        const cargos = await prisma.cargo.findMany({
-            where: {
-                id_personal_militar: id,
-            },
-            orderBy: {
-                fecha_cargo: 'desc',
-            },
-        })
+        const result = await session.run(`
+            MATCH (p:PersonalMilitar {id: $id})-[:DESEMPENO_CARGO]->(c:Cargo)
+            RETURN c
+            ORDER BY c.fecha_cargo DESC
+        `, { id })
+
+        const cargos = result.records.map(r => r.get('c').properties);
 
         return NextResponse.json(cargos)
     } catch (error) {
         console.error('Error fetching cargos:', error)
         return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    } finally {
+        await session.close();
     }
 }
+

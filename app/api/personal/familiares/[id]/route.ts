@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { driver } from '@/lib/neo4j'
 import { getUserFromToken } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
@@ -40,14 +40,6 @@ function invertirParentesco(parentesco: string): string {
     return PARENTESCO_INVERSO[parentesco] || parentesco
 }
 
-const includePersonal = {
-    grado: true,
-    arma_servicio: true,
-    organismo: true,
-    zona_militar: true,
-    region_militar: true,
-}
-
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ id: string }> }
@@ -56,43 +48,55 @@ export async function GET(
         return NextResponse.json([])
     }
 
-    const id = parseInt((await params).id)
-    if (isNaN(id)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+    const id = (await params).id
+    if (!id) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
+    const session = driver.session();
     try {
-        const familiares = await prisma.familiarMilitar.findMany({
-            where: {
-                OR: [
-                    { id_personal_militar: id },
-                    { id_familiar: id },
-                ]
-            },
-            include: {
-                familiar: { include: includePersonal },
-                personal: { include: includePersonal },
-                usuario: { select: { id_usuario: true, username: true, nombre: true } },
-            },
-            orderBy: { id_familiar_militar: 'asc' },
-        })
-        const normalized = familiares.map(rel => {
-            if (rel.id_personal_militar === id) {
-                const { personal, ...rest } = rel
-                return { ...rest, direccion: 'propio' }
-            } else {
-                const { personal, familiar, ...rest } = rel
-                return {
-                    ...rest,
-                    familiar: personal,
-                    parentesco: invertirParentesco(rel.parentesco),
-                    direccion: 'inverso',
+        // Obtenemos los familiares ignorando la dirección de la relación.
+        // Si la relación sale de id hacia f, es directo.
+        // Si sale de f hacia id, es inverso.
+        const result = await session.run(`
+            MATCH (p {id: $id})-[r:TIENE_FAMILIAR]-(f:PersonalMilitar)
+            OPTIONAL MATCH (f)-[:TIENE_GRADO]->(g:Grado)
+            OPTIONAL MATCH (f)-[:PERTENECE_A_ARMA]->(a:ArmaServicio)
+            OPTIONAL MATCH (f)-[:ADSCRITO_A]->(org:Organismo)
+            RETURN r, f, g, a, org, startNode(r) = p AS directo
+        `, { id })
+
+        const normalized = result.records.map(record => {
+            const r = record.get('r').properties;
+            const fNode = record.get('f').properties;
+            const grado = record.get('g')?.properties;
+            const arma = record.get('a')?.properties;
+            const org = record.get('org')?.properties;
+            const directo = record.get('directo');
+
+            const parentescoFinal = directo ? r.parentesco : invertirParentesco(r.parentesco);
+
+            return {
+                id_familiar_militar: r.id,
+                id_personal_militar: id,
+                id_familiar: fNode.id,
+                parentesco: parentescoFinal,
+                direccion: directo ? 'propio' : 'inverso',
+                fecha_registro: r.fecha_registro,
+                familiar: {
+                    ...fNode,
+                    id_personal_militar: fNode.id,
+                    grado,
+                    arma_servicio: arma,
+                    organismo: org
                 }
             }
-        })
+        });
 
         return NextResponse.json(normalized)
     } catch (error) {
         console.error('Error fetching familiares:', error)
         return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    } finally {
+        await session.close();
     }
 }
 
@@ -104,9 +108,10 @@ export async function POST(
         return NextResponse.json({})
     }
 
-    const id = parseInt((await params).id)
-    if (isNaN(id)) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
+    const id = (await params).id
+    if (!id) return NextResponse.json({ error: 'ID inválido' }, { status: 400 })
 
+    const session = driver.session();
     try {
         const user = await getUserFromToken()
         const body = await request.json()
@@ -120,33 +125,36 @@ export async function POST(
             return NextResponse.json({ error: 'No se puede agregar a sí mismo como familiar' }, { status: 400 })
         }
 
-        const nuevo = await prisma.familiarMilitar.create({
-            data: {
-                id_personal_militar: id,
-                id_familiar,
-                parentesco,
-                ...(user?.id ? { id_usuario: user.id } : {}),
-            },
-            include: {
-                familiar: {
-                    include: {
-                        grado: true,
-                        arma_servicio: true,
-                        organismo: true,
-                        zona_militar: true,
-                        region_militar: true,
-                    }
-                }
-            }
-        })
+        const relationId = crypto.randomUUID();
+        const date = new Date().toISOString();
 
-        return NextResponse.json(nuevo, { status: 201 })
-    } catch (error: any) {
-        if (error.code === 'P2002') {
-            return NextResponse.json({ error: 'Este familiar ya está registrado' }, { status: 409 })
+        // Evitar duplicados
+        const checkResult = await session.run(`
+            MATCH (p:PersonalMilitar {id: $id})-[r:TIENE_FAMILIAR]-(f:PersonalMilitar {id: $id_familiar})
+            RETURN r
+        `, { id, id_familiar });
+
+        if (checkResult.records.length > 0) {
+            return NextResponse.json({ error: 'Este familiar ya está registrado' }, { status: 409 });
         }
+
+        const result = await session.run(`
+            MATCH (p1:PersonalMilitar {id: $id})
+            MATCH (p2:PersonalMilitar {id: $id_familiar})
+            CREATE (p1)-[r:TIENE_FAMILIAR {
+                id: $relationId,
+                parentesco: $parentesco,
+                fecha_registro: $date
+            }]->(p2)
+            RETURN r
+        `, { id, id_familiar, relationId, parentesco, date });
+
+        return NextResponse.json({ ok: true, id_familiar_militar: relationId }, { status: 201 })
+    } catch (error: any) {
         console.error('Error creating familiar:', error)
         return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    } finally {
+        await session.close();
     }
 }
 
@@ -158,8 +166,8 @@ export async function PUT(
         return NextResponse.json({})
     }
 
+    const session = driver.session();
     try {
-        const user = await getUserFromToken()
         const body = await request.json()
         const { id_familiar_militar, parentesco, direccion } = body
 
@@ -170,15 +178,18 @@ export async function PUT(
         // Si se edita desde el lado inverso, invertir el parentesco antes de guardar
         const parentescoFinal = direccion === 'inverso' ? invertirParentesco(parentesco) : parentesco
 
-        const actualizado = await prisma.familiarMilitar.update({
-            where: { id_familiar_militar },
-            data: { parentesco: parentescoFinal, ...(user?.id ? { id_usuario: user.id } : {}) },
-        })
+        const result = await session.run(`
+            MATCH ()-[r:TIENE_FAMILIAR {id: $relId}]->()
+            SET r.parentesco = $parentescoFinal
+            RETURN r
+        `, { relId: id_familiar_militar, parentescoFinal });
 
-        return NextResponse.json(actualizado)
+        return NextResponse.json({ ok: true })
     } catch (error) {
         console.error('Error updating familiar:', error)
         return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    } finally {
+        await session.close();
     }
 }
 
@@ -190,6 +201,7 @@ export async function DELETE(
         return NextResponse.json({})
     }
 
+    const session = driver.session();
     try {
         const body = await request.json()
         const { id_familiar_militar } = body
@@ -198,13 +210,16 @@ export async function DELETE(
             return NextResponse.json({ error: 'Falta id_familiar_militar' }, { status: 400 })
         }
 
-        await prisma.familiarMilitar.delete({
-            where: { id_familiar_militar },
-        })
+        await session.run(`
+            MATCH ()-[r:TIENE_FAMILIAR {id: $relId}]->()
+            DELETE r
+        `, { relId: id_familiar_militar });
 
         return NextResponse.json({ ok: true })
     } catch (error) {
         console.error('Error deleting familiar:', error)
         return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    } finally {
+        await session.close();
     }
 }

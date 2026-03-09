@@ -19,6 +19,11 @@ const Busqueda = () => {
   const [modalConducta, setModalConducta] = useState(false);
   const [personalConducta, setPersonalConducta] = useState<Record<string, unknown> | null>(null);
   const [familiaresMilitares, setFamiliaresMilitares] = useState<Record<string, unknown>[]>([]);
+  const [mounted, setMounted] = useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const abrirModalConducta = (persona: Record<string, unknown>) => {
     setPersonalConducta(persona);
@@ -119,6 +124,9 @@ const Busqueda = () => {
 
     setNuevoCampo({ tipo: "", valor: "" });
   };
+
+  if (!mounted) return null;
+
   return (
     <div className="p-2 space-y-2 bg-[var(--background)] min-h-screen text-[var(--text-primary)]">
       {/*Búsqueda Rápida */}
@@ -746,9 +754,9 @@ const Busqueda = () => {
             </TableHeader>
 
             <TableBody>
-              {(filtros.familiares ? familiaresMilitares : resultados).map((p) => (
+              {(filtros.familiares ? familiaresMilitares : resultados).map((p: any, i: number) => (
                 <TableRow
-                  key={p.id_personal_militar}
+                  key={p.id_personal_militar || i}
                   className="cursor-pointer hover:bg-[var(--surface-alt)]"
                   onClick={() => appActions.seleccionarPersonal(p.id_personal_militar)}
                 >
