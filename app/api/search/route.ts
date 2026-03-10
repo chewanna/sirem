@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
         // === FILTROS MULTI-SELECT (arrays) ===
         if (filtros.empleo && filtros.empleo.length > 0) {
-            whereClauses.push(`ANY(e IN $empleo WHERE toLower(gr.abreviatura) CONTAINS toLower(e) OR toLower(gr.nombre_grado) CONTAINS toLower(e) OR toLower(e) CONTAINS toLower(gr.abreviatura))`)
+            whereClauses.push(`ANY(e IN $empleo WHERE toLower(gr.abreviatura) = toLower(e) OR toLower(gr.nombre_grado) = toLower(e))`)
             params.empleo = filtros.empleo
         }
         if (filtros.arma && filtros.arma.length > 0) {

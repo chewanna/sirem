@@ -7,6 +7,7 @@ import { useAppState } from "../componentes/acciones/estados";
 import { useFiltrosBusqueda } from "../componentes/acciones/filtros";
 import { ExportarButtons } from "./exportar";
 import BusquedaRapida from "../componentes/busquedaRapida";
+import { AdminCatalogo } from "../componentes/AdminCatalogo";
 import { ExportarComision } from "./exportarComision";
 
 interface PersonalItem {
@@ -267,46 +268,48 @@ const Listados = () => {
                             Registros localizados: {resultados.length}
                         </p>
                     </footer>
-                    <Table>
-                        <TableHeader className="bg-[var(--surface-alt)]">
-                            <TableRow>
-                                <TableHead className="font-bold text-[var(--text-primary)] w-10"></TableHead>
-                                <TableHead className="font-bold text-[var(--text-primary)]">Grado</TableHead>
-                                <TableHead className="font-bold text-[var(--text-primary)]">Empleo</TableHead>
-                                <TableHead className="font-bold text-[var(--text-primary)]">Apellido Paterno</TableHead>
-                                <TableHead className="font-bold text-[var(--text-primary)]">Apellido Materno</TableHead>
-                                <TableHead className="font-bold text-[var(--text-primary)]">Nombre</TableHead>
-                                <TableHead className="font-bold text-[var(--text-primary)]">Matrícula</TableHead>
-                            </TableRow>
-                        </TableHeader>
-
-                        <TableBody>
-                            {resultados.map((p) => (
-                                <TableRow
-                                    key={p.id_personal_militar}
-                                    className="cursor-pointer hover:bg-[var(--surface-alt)] text-[var(--text-primary)]"
-                                    onClick={() => appActions.seleccionarPersonal(p.id_personal_militar)}
-                                >
-                                    <TableCell>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); agregarAListado(p); }}
-                                            disabled={listado.some(l => l.id_personal_militar === p.id_personal_militar)}
-                                            className="p-1 rounded-md bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                            title="Agregar a listado"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                        </button>
-                                    </TableCell>
-                                    <TableCell>{p.grado?.abreviatura || '-'}</TableCell>
-                                    <TableCell>{p.arma_servicio?.nombre_servicio || '-'}</TableCell>
-                                    <TableCell>{p.apellido_paterno}</TableCell>
-                                    <TableCell>{p.apellido_materno}</TableCell>
-                                    <TableCell>{p.nombre}</TableCell>
-                                    <TableCell>{p.matricula}</TableCell>
+                    <div className="overflow-auto max-h-[400px]">
+                        <Table>
+                            <TableHeader className="sticky top-0 z-10 bg-[var(--surface-alt)] shadow-sm">
+                                <TableRow>
+                                    <TableHead className="font-bold text-[var(--text-primary)] w-10"></TableHead>
+                                    <TableHead className="font-bold text-[var(--text-primary)]">Grado</TableHead>
+                                    <TableHead className="font-bold text-[var(--text-primary)]">Empleo</TableHead>
+                                    <TableHead className="font-bold text-[var(--text-primary)]">Apellido Paterno</TableHead>
+                                    <TableHead className="font-bold text-[var(--text-primary)]">Apellido Materno</TableHead>
+                                    <TableHead className="font-bold text-[var(--text-primary)]">Nombre</TableHead>
+                                    <TableHead className="font-bold text-[var(--text-primary)]">Matrícula</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+
+                            <TableBody>
+                                {resultados.map((p) => (
+                                    <TableRow
+                                        key={p.id_personal_militar}
+                                        className="cursor-pointer hover:bg-[var(--surface-alt)] text-[var(--text-primary)]"
+                                        onClick={() => appActions.seleccionarPersonal(p.id_personal_militar)}
+                                    >
+                                        <TableCell>
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); agregarAListado(p); }}
+                                                disabled={listado.some(l => l.id_personal_militar === p.id_personal_militar)}
+                                                className="p-1 rounded-md bg-[var(--primary)] text-white hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                                title="Agregar a listado"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                            </button>
+                                        </TableCell>
+                                        <TableCell>{p.grado?.abreviatura || '-'}</TableCell>
+                                        <TableCell>{p.arma_servicio?.nombre_servicio || '-'}</TableCell>
+                                        <TableCell>{p.apellido_paterno}</TableCell>
+                                        <TableCell>{p.apellido_materno}</TableCell>
+                                        <TableCell>{p.nombre}</TableCell>
+                                        <TableCell>{p.matricula}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </section>
             </div>
             <div>
@@ -316,66 +319,68 @@ const Listados = () => {
                             {listadoActivoId ? `Editando: ${nombreListado}` : "Listado Generado"}
                         </h2>
                         <div className="bg-[var(--surface)] rounded-lg border border-[var(--border)] overflow-hidden">
-                            <Table>
-                                <TableHeader className="bg-[var(--surface-alt)]">
-                                    <TableRow>
-                                        <TableHead className="font-bold text-[var(--text-primary)] w-10"></TableHead>
-                                        <TableHead className="font-bold text-[var(--text-primary)]">Grado</TableHead>
-                                        <TableHead className="font-bold text-[var(--text-primary)]">Empleo</TableHead>
-                                        <TableHead className="font-bold text-[var(--text-primary)]">Apellido Paterno</TableHead>
-                                        <TableHead className="font-bold text-[var(--text-primary)]">Apellido Materno</TableHead>
-                                        <TableHead className="font-bold text-[var(--text-primary)]">Nombre</TableHead>
-                                        <TableHead className="font-bold text-[var(--text-primary)]">Matrícula</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {listado.length === 0 ? (
+                            <div className="overflow-auto max-h-[400px]">
+                                <Table>
+                                    <TableHeader className="sticky top-0 z-10 bg-[var(--surface-alt)] shadow-sm">
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-center text-[var(--text-secondary)] py-6">
-                                                Agregue personal desde la tabla de arriba
-                                            </TableCell>
+                                            <TableHead className="font-bold text-[var(--text-primary)] w-10"></TableHead>
+                                            <TableHead className="font-bold text-[var(--text-primary)]">Grado</TableHead>
+                                            <TableHead className="font-bold text-[var(--text-primary)]">Empleo</TableHead>
+                                            <TableHead className="font-bold text-[var(--text-primary)]">Apellido Paterno</TableHead>
+                                            <TableHead className="font-bold text-[var(--text-primary)]">Apellido Materno</TableHead>
+                                            <TableHead className="font-bold text-[var(--text-primary)]">Nombre</TableHead>
+                                            <TableHead className="font-bold text-[var(--text-primary)]">Matrícula</TableHead>
                                         </TableRow>
-                                    ) : (
-                                        listado.map((p, index) => {
-                                            return (
-                                                <TableRow
-                                                    key={p.id_personal_militar}
-                                                    className={`text-[var(--text-primary)] transition-all ${draggedItemIndex === index ? 'opacity-50 scale-y-105 shadow-md bg-blue-50/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
-                                                    draggable
-                                                    onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLTableRowElement>, index)}
-                                                    onDragOver={(e) => handleDragOver(e as unknown as React.DragEvent<HTMLTableRowElement>, index)}
-                                                    onDragEnd={handleDragEnd}
-                                                >
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="cursor-grab text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors active:cursor-grabbing" title="Arrastrar para ordenar">
-                                                                <GripVertical className="w-4 h-4" />
+                                    </TableHeader>
+                                    <TableBody>
+                                        {listado.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={7} className="text-center text-[var(--text-secondary)] py-6">
+                                                    Agregue personal desde la tabla de arriba
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            listado.map((p, index) => {
+                                                return (
+                                                    <TableRow
+                                                        key={p.id_personal_militar}
+                                                        className={`text-[var(--text-primary)] transition-all ${draggedItemIndex === index ? 'opacity-50 scale-y-105 shadow-md bg-blue-50/50' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+                                                        draggable
+                                                        onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLTableRowElement>, index)}
+                                                        onDragOver={(e) => handleDragOver(e as unknown as React.DragEvent<HTMLTableRowElement>, index)}
+                                                        onDragEnd={handleDragEnd}
+                                                    >
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="cursor-grab text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors active:cursor-grabbing" title="Arrastrar para ordenar">
+                                                                    <GripVertical className="w-4 h-4" />
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => quitarDeListado(p.id_personal_militar)}
+                                                                    className="p-1 rounded-md text-red-500 hover:bg-red-50 transition-colors"
+                                                                    title="Quitar del listado"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
                                                             </div>
-                                                            <button
-                                                                onClick={() => quitarDeListado(p.id_personal_militar)}
-                                                                className="p-1 rounded-md text-red-500 hover:bg-red-50 transition-colors"
-                                                                title="Quitar del listado"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>{p.grado?.abreviatura || '-'}</TableCell>
-                                                    <TableCell>{p.arma_servicio?.nombre_servicio || '-'}</TableCell>
-                                                    <TableCell>{p.apellido_paterno}</TableCell>
-                                                    <TableCell>{p.apellido_materno}</TableCell>
-                                                    <TableCell>{p.nombre}</TableCell>
-                                                    <TableCell>
-                                                        <div className="flex flex-col gap-0.5">
-                                                            <span>{p.matricula}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                </TableRow>
-                                            );
-                                        })
-                                    )}
-                                </TableBody>
-                            </Table>
+                                                        </TableCell>
+                                                        <TableCell>{p.grado?.abreviatura || '-'}</TableCell>
+                                                        <TableCell>{p.arma_servicio?.nombre_servicio || '-'}</TableCell>
+                                                        <TableCell>{p.apellido_paterno}</TableCell>
+                                                        <TableCell>{p.apellido_materno}</TableCell>
+                                                        <TableCell>{p.nombre}</TableCell>
+                                                        <TableCell>
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span>{p.matricula}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
                             <footer className="p-3 bg-[var(--surface)] border-t border-[var(--border)]">
                                 <p className="text-red-600 font-black text-xs tracking-tighter uppercase">
                                     Cantidad en listado: {listado.length}

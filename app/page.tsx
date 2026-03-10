@@ -220,10 +220,10 @@ export default async function Page() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50 text-slate-500 text-sm border-b border-slate-200">
+        <div className="overflow-auto max-h-[400px]">
+          <table className="w-full text-left border-collapse relative">
+            <thead className="sticky top-0 z-10 bg-slate-50 outline outline-1 outline-slate-200">
+              <tr className="text-slate-500 text-sm">
                 <th className="px-6 py-4 font-medium">Personal</th>
                 <th className="px-6 py-4 font-medium">Matrícula</th>
                 <th className="px-6 py-4 font-medium">Tipo de Movimiento</th>

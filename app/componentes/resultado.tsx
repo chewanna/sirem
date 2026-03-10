@@ -97,7 +97,7 @@ const Resultado = () => {
                 EDAD LIMITE: {calcularEdadLimite(personal.fecha_nacimiento, personal.grado?.nombre_grado)}
               </div>
               <h3 className="text-2xl font-black text-[var(--text-secondary)] leading-none uppercase">
-                {personal.grado?.abreviatura} {personal.arma_servicio?.nombre_servicio} {personal.nombre} {personal.apellido_paterno} {personal.apellido_materno}
+                {personal.grado?.abreviatura} {personal.arma_servicio?.nombre_servicio} {personal.profesion?.abreviatura} {personal.nombre} {personal.apellido_paterno} {personal.apellido_materno}
               </h3>
             </div>
 

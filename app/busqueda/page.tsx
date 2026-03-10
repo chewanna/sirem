@@ -8,6 +8,7 @@ import { useFiltrosBusqueda } from "../componentes/acciones/filtros";
 import { ConductaModal } from "../componentes/Conducta";
 import { Popover, PopoverTrigger, PopoverContent } from "../componentes/ui/popover";
 import BusquedaRapida from "../componentes/busquedaRapida";
+import { AdminCatalogo } from "../componentes/AdminCatalogo";
 
 const Busqueda = () => {
   const { state: appState, actions: appActions } = useAppState();
@@ -21,9 +22,50 @@ const Busqueda = () => {
   const [familiaresMilitares, setFamiliaresMilitares] = useState<Record<string, unknown>[]>([]);
   const [mounted, setMounted] = useState(false);
 
+  const loadCatalogos = async () => {
+    try {
+      const res = await fetch('/api/catalogos');
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+
+      const newOpcionesSelect = { ...opcionesSelect };
+      const newOpciones2 = [...opciones2];
+      const newOpciones3 = [...opciones3];
+      const newOpciones4 = [...opciones4];
+      const newOpciones5 = [...opciones5];
+
+      data.forEach((item: { tipo: string, valor: string }) => {
+        const uppercased = item.valor.toUpperCase();
+        if (item.tipo === "arma" && !newOpciones2.includes(uppercased)) newOpciones2.push(uppercased);
+        else if (item.tipo === "region" && !newOpciones3.includes(uppercased)) newOpciones3.push(uppercased);
+        else if (item.tipo === "zona" && !newOpciones4.includes(uppercased)) newOpciones4.push(uppercased);
+        else if (item.tipo === "estadoNacimiento" && !newOpciones5.includes(uppercased)) newOpciones5.push(uppercased);
+        else if (newOpcionesSelect.hasOwnProperty(item.tipo)) {
+          const currentArr = newOpcionesSelect[item.tipo as keyof typeof newOpcionesSelect];
+          if (!currentArr.includes(uppercased)) currentArr.push(uppercased);
+        }
+      });
+      setOpciones2(Array.from(new Set(newOpciones2)));
+      setOpciones3(Array.from(new Set(newOpciones3)));
+      setOpciones4(Array.from(new Set(newOpciones4)));
+      setOpciones5(Array.from(new Set(newOpciones5)));
+      setOpcionesSelect({
+        especialidad: Array.from(new Set(newOpcionesSelect.especialidad)),
+        profesion: Array.from(new Set(newOpcionesSelect.profesion)),
+        subespecialidad: Array.from(new Set(newOpcionesSelect.subespecialidad)),
+        situacion: Array.from(new Set(newOpcionesSelect.situacion)),
+        sexo: Array.from(new Set(newOpcionesSelect.sexo)),
+        unidad: Array.from(new Set(newOpcionesSelect.unidad)),
+        cargo: Array.from(new Set(newOpcionesSelect.cargo)),
+        clasificacion: Array.from(new Set(newOpcionesSelect.clasificacion))
+      });
+    } catch (e) { console.error('Error cargando catalogos', e); }
+  }
+
   React.useEffect(() => {
     setMounted(true);
-  }, []);
+    loadCatalogos();
+  }, [/* eslint-disable-next-line react-hooks/exhaustive-deps */]);
 
   const abrirModalConducta = (persona: Record<string, unknown>) => {
     setPersonalConducta(persona);
@@ -91,7 +133,16 @@ const Busqueda = () => {
   const [opciones4, setOpciones4] = useState(["1/a. Z.M.", "2/a. Z.M.", "3/a. Z.M.", "4/a. Z.M.", "5/a. Z.M.", "6/a. Z.M.", "7/a. Z.M.", "8/a. Z.M.", "9/a. Z.M.", "10/a. Z.M.", "11/a. Z.M.", "12/a. Z.M.", "13/a. Z.M.", "14/a. Z.M.", "15/a. Z.M.", "16/a. Z.M.", "17/a. Z.M.", "18/a. Z.M.", "19/a. Z.M.", "20/a. Z.M.", "21/a. Z.M.", "22/a. Z.M.", "23/a. Z.M.", "24/a. Z.M.", "25/a. Z.M.", "26/a. Z.M.", "27/a. Z.M.", "28/a. Z.M.", "29/a. Z.M.", "30/a. Z.M.", "31/a. Z.M.", "32/a. Z.M.", "33/a. Z.M.", "34/a. Z.M.", "35/a. Z.M.", "36/a. Z.M.", "37/a. Z.M.", "38/a. Z.M.", "39/a. Z.M.", "40/a. Z.M.", "41/a. Z.M.", "42/a. Z.M.", "43/a. Z.M.", "44/a. Z.M.", "45/a. Z.M.", "46/a. Z.M.", "47/a. Z.M.", "48/a. Z.M."]);
   const [opciones5, setOpciones5] = useState(["PUEBLA", "TLAXCALA", "HIDALGO", "VERACRUZ", "OAXACA", "GUERRERO", "MORELOS", "CDMX", "ESTADO DE MÉXICO", "QUERÉTARO", "TAMAULIPAS", "SAN LUIS POTOSÍ", "ZACATECAS", "AGUASCALIENTES", "NAYARIT", "JALISCO", "COLIMA", "MICHOACÁN", "GUANAJUATO", "CHIHUAHUA", "COAHUILA", "DURANGO", "NUEVO LEÓN", "SONORA", "SINALOA", "BAJA CALIFORNIA", "BAJA CALIFORNIA SUR", "CAMPECHE", "QUINTANA ROO", "YUCATÁN"]);
 
-  const [opcionesSelect, setOpcionesSelect] = useState({
+  const [opcionesSelect, setOpcionesSelect] = useState<{
+    especialidad: string[];
+    profesion: string[];
+    subespecialidad: string[];
+    situacion: string[];
+    sexo: string[];
+    unidad: string[];
+    cargo: string[];
+    clasificacion: string[];
+  }>({
     especialidad: [],
     profesion: ["D.E.M.", "D.E.M.A.", "E.M."],
     subespecialidad: [],
@@ -102,28 +153,6 @@ const Busqueda = () => {
     clasificacion: ["PERMANENTE", "AUXILIAR"]
   });
 
-  const [nuevoCampo, setNuevoCampo] = useState({ tipo: "", valor: "" });
-
-  const agregarNuevaOpcion = (tipo: string, valor: string) => {
-    if (!valor.trim()) return;
-    const uppercased = valor.toUpperCase();
-    if (tipo === "arma" && !opciones2.includes(uppercased)) setOpciones2([...opciones2, uppercased]);
-    else if (tipo === "region" && !opciones3.includes(uppercased)) setOpciones3([...opciones3, uppercased]);
-    else if (tipo === "zona" && !opciones4.includes(uppercased)) setOpciones4([...opciones4, uppercased]);
-    else if (tipo === "estadoNacimiento" && !opciones5.includes(uppercased)) setOpciones5([...opciones5, uppercased]);
-    else if (opcionesSelect.hasOwnProperty(tipo)) {
-      setOpcionesSelect(prev => {
-        const key = tipo as keyof typeof prev;
-        const currentArr = prev[key] as string[];
-        return {
-          ...prev,
-          [key]: currentArr.includes(uppercased) ? currentArr : [...currentArr, uppercased]
-        };
-      });
-    }
-
-    setNuevoCampo({ tipo: "", valor: "" });
-  };
 
   if (!mounted) return null;
 
@@ -174,25 +203,8 @@ const Busqueda = () => {
                         </div>)
                     })}
                     {esAdministrador && (
-                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[var(--border)]">
-                        <input
-                          type="text"
-                          className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                          placeholder="NUEVA ARMA"
-                          value={nuevoCampo.tipo === 'arma' ? nuevoCampo.valor : ''}
-                          onChange={(e) => setNuevoCampo({ tipo: 'arma', valor: e.target.value })}
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            agregarNuevaOpcion('arma', nuevoCampo.valor);
-                          }}
-                          className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                          disabled={nuevoCampo.tipo !== 'arma' || !nuevoCampo.valor.trim()}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="arma" opciones={opciones2} onUpdate={loadCatalogos} placeholder="NUEVA ARMA" />
                       </div>
                     )}
                   </PopoverContent>
@@ -201,130 +213,126 @@ const Busqueda = () => {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">Especialidad</label>
-                <select value={filtros.especialidad} onChange={(e) => handleSelectChange(e, 'especialidad')} className="w-full h-10 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none">
-                  <option value="">TODOS</option>
-                  {opcionesSelect.especialidad.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                {esAdministrador && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <input
-                      type="text"
-                      className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                      placeholder="NUEVA OPCIÓN"
-                      value={nuevoCampo.tipo === 'especialidad' ? nuevoCampo.valor : ''}
-                      onChange={(e) => setNuevoCampo({ tipo: 'especialidad', valor: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        agregarNuevaOpcion('especialidad', nuevoCampo.valor);
-                      }}
-                      className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      disabled={nuevoCampo.tipo !== 'especialidad' || !nuevoCampo.valor.trim()}
-                    >
-                      <Plus className="w-4 h-4" />
+                <Popover>
+                  <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
+                    <button className="flex items-center justify-between w-full outline-none">
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.especialidad || "TODOS"}</span>
+                      <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
-                  </div>
-                )}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
+                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.especialidad ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ especialidad: '' })}>
+                      <span className="text-xs select-none">TODOS</span>
+                    </div>
+                    {opcionesSelect.especialidad.map((opt) => {
+                      const selected = filtros.especialidad === opt;
+                      return (
+                        <div key={opt}
+                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
+                          onClick={() => actions.setFiltros({ especialidad: opt })} >
+                          <span className="text-xs select-none w-full">{opt}</span>
+                        </div>)
+                    })}
+                    {esAdministrador && (
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="especialidad" opciones={opcionesSelect.especialidad} onUpdate={loadCatalogos} placeholder="NUEVA OPCIÓN" />
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">Profesión</label>
-                <select value={filtros.profesion} onChange={(e) => handleSelectChange(e, 'profesion')} className="w-full h-10 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none">
-                  <option value="">TODOS</option>
-                  {opcionesSelect.profesion.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                {esAdministrador && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <input
-                      type="text"
-                      className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                      placeholder="NUEVA OPCIÓN"
-                      value={nuevoCampo.tipo === 'profesion' ? nuevoCampo.valor : ''}
-                      onChange={(e) => setNuevoCampo({ tipo: 'profesion', valor: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        agregarNuevaOpcion('profesion', nuevoCampo.valor);
-                      }}
-                      className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      disabled={nuevoCampo.tipo !== 'profesion' || !nuevoCampo.valor.trim()}
-                    >
-                      <Plus className="w-4 h-4" />
+                <Popover>
+                  <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
+                    <button className="flex items-center justify-between w-full outline-none">
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.profesion || "TODOS"}</span>
+                      <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
-                  </div>
-                )}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
+                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.profesion ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ profesion: '' })}>
+                      <span className="text-xs select-none">TODOS</span>
+                    </div>
+                    {opcionesSelect.profesion.map((opt) => {
+                      const selected = filtros.profesion === opt;
+                      return (
+                        <div key={opt}
+                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
+                          onClick={() => actions.setFiltros({ profesion: opt })} >
+                          <span className="text-xs select-none w-full">{opt}</span>
+                        </div>)
+                    })}
+                    {esAdministrador && (
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="profesion" opciones={opcionesSelect.profesion} onUpdate={loadCatalogos} placeholder="NUEVA OPCIÓN" />
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">SubEspecialidad</label>
-                <select value={filtros.subespecialidad} onChange={(e) => handleSelectChange(e, 'subespecialidad')} className="w-full h-10 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none">
-                  <option value="">TODOS</option>
-                  {opcionesSelect.subespecialidad.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                {esAdministrador && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <input
-                      type="text"
-                      className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                      placeholder="NUEVA OPCIÓN"
-                      value={nuevoCampo.tipo === 'subespecialidad' ? nuevoCampo.valor : ''}
-                      onChange={(e) => setNuevoCampo({ tipo: 'subespecialidad', valor: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        agregarNuevaOpcion('subespecialidad', nuevoCampo.valor);
-                      }}
-                      className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      disabled={nuevoCampo.tipo !== 'subespecialidad' || !nuevoCampo.valor.trim()}
-                    >
-                      <Plus className="w-4 h-4" />
+                <Popover>
+                  <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
+                    <button className="flex items-center justify-between w-full outline-none">
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.subespecialidad || "TODOS"}</span>
+                      <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
-                  </div>
-                )}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
+                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.subespecialidad ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ subespecialidad: '' })}>
+                      <span className="text-xs select-none">TODOS</span>
+                    </div>
+                    {opcionesSelect.subespecialidad.map((opt) => {
+                      const selected = filtros.subespecialidad === opt;
+                      return (
+                        <div key={opt}
+                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
+                          onClick={() => actions.setFiltros({ subespecialidad: opt })} >
+                          <span className="text-xs select-none w-full">{opt}</span>
+                        </div>)
+                    })}
+                    {esAdministrador && (
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="subespecialidad" opciones={opcionesSelect.subespecialidad} onUpdate={loadCatalogos} placeholder="NUEVA OPCIÓN" />
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">Situación</label>
-                <select value={filtros.situacion} onChange={(e) => handleSelectChange(e, 'situacion')} className="w-full h-10 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none">
-                  <option value="">TODOS</option>
-                  {opcionesSelect.situacion.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                {esAdministrador && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <input
-                      type="text"
-                      className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                      placeholder="NUEVA OPCIÓN"
-                      value={nuevoCampo.tipo === 'situacion' ? nuevoCampo.valor : ''}
-                      onChange={(e) => setNuevoCampo({ tipo: 'situacion', valor: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        agregarNuevaOpcion('situacion', nuevoCampo.valor);
-                      }}
-                      className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      disabled={nuevoCampo.tipo !== 'situacion' || !nuevoCampo.valor.trim()}
-                    >
-                      <Plus className="w-4 h-4" />
+                <Popover>
+                  <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
+                    <button className="flex items-center justify-between w-full outline-none">
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.situacion || "TODOS"}</span>
+                      <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
-                  </div>
-                )}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
+                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.situacion ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ situacion: '' })}>
+                      <span className="text-xs select-none">TODOS</span>
+                    </div>
+                    {opcionesSelect.situacion.map((opt) => {
+                      const selected = filtros.situacion === opt;
+                      return (
+                        <div key={opt}
+                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
+                          onClick={() => actions.setFiltros({ situacion: opt })} >
+                          <span className="text-xs select-none w-full">{opt}</span>
+                        </div>)
+                    })}
+                    {esAdministrador && (
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="situacion" opciones={opcionesSelect.situacion} onUpdate={loadCatalogos} placeholder="NUEVA OPCIÓN" />
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/*checkbox */}
@@ -349,25 +357,8 @@ const Busqueda = () => {
                         </div>)
                     })}
                     {esAdministrador && (
-                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[var(--border)]">
-                        <input
-                          type="text"
-                          className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                          placeholder="NUEVA REGIÓN"
-                          value={nuevoCampo.tipo === 'region' ? nuevoCampo.valor : ''}
-                          onChange={(e) => setNuevoCampo({ tipo: 'region', valor: e.target.value })}
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            agregarNuevaOpcion('region', nuevoCampo.valor);
-                          }}
-                          className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                          disabled={nuevoCampo.tipo !== 'region' || !nuevoCampo.valor.trim()}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="region" opciones={opciones3} onUpdate={loadCatalogos} placeholder="NUEVA REGIÓN" />
                       </div>
                     )}
                   </PopoverContent>
@@ -395,25 +386,8 @@ const Busqueda = () => {
                         </div>)
                     })}
                     {esAdministrador && (
-                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[var(--border)]">
-                        <input
-                          type="text"
-                          className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                          placeholder="NUEVA ZONA"
-                          value={nuevoCampo.tipo === 'zona' ? nuevoCampo.valor : ''}
-                          onChange={(e) => setNuevoCampo({ tipo: 'zona', valor: e.target.value })}
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            agregarNuevaOpcion('zona', nuevoCampo.valor);
-                          }}
-                          className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                          disabled={nuevoCampo.tipo !== 'zona' || !nuevoCampo.valor.trim()}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="zona" opciones={opciones4} onUpdate={loadCatalogos} placeholder="NUEVA ZONA" />
                       </div>
                     )}
                   </PopoverContent>
@@ -422,34 +396,33 @@ const Busqueda = () => {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">Sexo</label>
-                <select value={filtros.sexo} onChange={(e) => handleSelectChange(e, 'sexo')} className="w-full h-10 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none">
-                  <option value="">TODOS</option>
-                  {opcionesSelect.sexo.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                {esAdministrador && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <input
-                      type="text"
-                      className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                      placeholder="NUEVA OPCIÓN"
-                      value={nuevoCampo.tipo === 'sexo' ? nuevoCampo.valor : ''}
-                      onChange={(e) => setNuevoCampo({ tipo: 'sexo', valor: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        agregarNuevaOpcion('sexo', nuevoCampo.valor);
-                      }}
-                      className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      disabled={nuevoCampo.tipo !== 'sexo' || !nuevoCampo.valor.trim()}
-                    >
-                      <Plus className="w-4 h-4" />
+                <Popover>
+                  <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
+                    <button className="flex items-center justify-between w-full outline-none">
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.sexo || "TODOS"}</span>
+                      <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
-                  </div>
-                )}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
+                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.sexo ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ sexo: '' })}>
+                      <span className="text-xs select-none">TODOS</span>
+                    </div>
+                    {opcionesSelect.sexo.map((opt) => {
+                      const selected = filtros.sexo === opt;
+                      return (
+                        <div key={opt}
+                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
+                          onClick={() => actions.setFiltros({ sexo: opt })} >
+                          <span className="text-xs select-none w-full">{opt}</span>
+                        </div>)
+                    })}
+                    {esAdministrador && (
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="sexo" opciones={opcionesSelect.sexo} onUpdate={loadCatalogos} placeholder="NUEVA OPCIÓN" />
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-1.5">
@@ -483,25 +456,8 @@ const Busqueda = () => {
                         </div>)
                     })}
                     {esAdministrador && (
-                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[var(--border)]">
-                        <input
-                          type="text"
-                          className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                          placeholder="NUEVO ESTADO"
-                          value={nuevoCampo.tipo === 'estadoNacimiento' ? nuevoCampo.valor : ''}
-                          onChange={(e) => setNuevoCampo({ tipo: 'estadoNacimiento', valor: e.target.value })}
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            agregarNuevaOpcion('estadoNacimiento', nuevoCampo.valor);
-                          }}
-                          className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                          disabled={nuevoCampo.tipo !== 'estadoNacimiento' || !nuevoCampo.valor.trim()}
-                        >
-                          <Plus className="w-4 h-4" />
-                        </button>
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="estadoNacimiento" opciones={opciones5} onUpdate={loadCatalogos} placeholder="NUEVO ESTADO" />
                       </div>
                     )}
                   </PopoverContent>
@@ -512,34 +468,33 @@ const Busqueda = () => {
             <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-6">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">Unidad</label>
-                <select value={filtros.unidad} onChange={(e) => handleSelectChange(e, 'unidad')} className="w-full h-10 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none">
-                  <option value="">TODOS</option>
-                  {opcionesSelect.unidad.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                {esAdministrador && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <input
-                      type="text"
-                      className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                      placeholder="NUEVA OPCIÓN"
-                      value={nuevoCampo.tipo === 'unidad' ? nuevoCampo.valor : ''}
-                      onChange={(e) => setNuevoCampo({ tipo: 'unidad', valor: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        agregarNuevaOpcion('unidad', nuevoCampo.valor);
-                      }}
-                      className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      disabled={nuevoCampo.tipo !== 'unidad' || !nuevoCampo.valor.trim()}
-                    >
-                      <Plus className="w-4 h-4" />
+                <Popover>
+                  <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
+                    <button className="flex items-center justify-between w-full outline-none">
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.unidad || "TODOS"}</span>
+                      <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
-                  </div>
-                )}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
+                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.unidad ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ unidad: '' })}>
+                      <span className="text-xs select-none">TODOS</span>
+                    </div>
+                    {opcionesSelect.unidad.map((opt) => {
+                      const selected = filtros.unidad === opt;
+                      return (
+                        <div key={opt}
+                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
+                          onClick={() => actions.setFiltros({ unidad: opt })} >
+                          <span className="text-xs select-none w-full">{opt}</span>
+                        </div>)
+                    })}
+                    {esAdministrador && (
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="unidad" opciones={opcionesSelect.unidad} onUpdate={loadCatalogos} placeholder="NUEVA OPCIÓN" />
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-1.5">
@@ -553,66 +508,64 @@ const Busqueda = () => {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">Cargo</label>
-                <select value={filtros.cargo} onChange={(e) => handleSelectChange(e, 'cargo')} className="w-full h-10 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none">
-                  <option value="">TODOS</option>
-                  {opcionesSelect.cargo.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                {esAdministrador && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <input
-                      type="text"
-                      className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                      placeholder="NUEVA OPCIÓN"
-                      value={nuevoCampo.tipo === 'cargo' ? nuevoCampo.valor : ''}
-                      onChange={(e) => setNuevoCampo({ tipo: 'cargo', valor: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        agregarNuevaOpcion('cargo', nuevoCampo.valor);
-                      }}
-                      className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      disabled={nuevoCampo.tipo !== 'cargo' || !nuevoCampo.valor.trim()}
-                    >
-                      <Plus className="w-4 h-4" />
+                <Popover>
+                  <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
+                    <button className="flex items-center justify-between w-full outline-none">
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.cargo || "TODOS"}</span>
+                      <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
-                  </div>
-                )}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
+                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.cargo ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ cargo: '' })}>
+                      <span className="text-xs select-none">TODOS</span>
+                    </div>
+                    {opcionesSelect.cargo.map((opt) => {
+                      const selected = filtros.cargo === opt;
+                      return (
+                        <div key={opt}
+                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
+                          onClick={() => actions.setFiltros({ cargo: opt })} >
+                          <span className="text-xs select-none w-full">{opt}</span>
+                        </div>)
+                    })}
+                    {esAdministrador && (
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="cargo" opciones={opcionesSelect.cargo} onUpdate={loadCatalogos} placeholder="NUEVA OPCIÓN" />
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-[var(--text-secondary)] uppercase">Clasificación</label>
-                <select value={filtros.clasificacion} onChange={(e) => handleSelectChange(e, 'clasificacion')} className="w-full h-10 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-xs focus:ring-2 focus:ring-[var(--primary)] outline-none">
-                  <option value="">TODOS</option>
-                  {opcionesSelect.clasificacion.map((opt) => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                {esAdministrador && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <input
-                      type="text"
-                      className="flex-1 text-xs px-2 py-1 border border-[var(--border)] rounded bg-transparent focus:outline-none focus:ring-1 focus:ring-blue-500 uppercase"
-                      placeholder="NUEVA OPCIÓN"
-                      value={nuevoCampo.tipo === 'clasificacion' ? nuevoCampo.valor : ''}
-                      onChange={(e) => setNuevoCampo({ tipo: 'clasificacion', valor: e.target.value })}
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        agregarNuevaOpcion('clasificacion', nuevoCampo.valor);
-                      }}
-                      className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-                      disabled={nuevoCampo.tipo !== 'clasificacion' || !nuevoCampo.valor.trim()}
-                    >
-                      <Plus className="w-4 h-4" />
+                <Popover>
+                  <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
+                    <button className="flex items-center justify-between w-full outline-none">
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.clasificacion || "TODOS"}</span>
+                      <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
-                  </div>
-                )}
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
+                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.clasificacion ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ clasificacion: '' })}>
+                      <span className="text-xs select-none">TODOS</span>
+                    </div>
+                    {opcionesSelect.clasificacion.map((opt) => {
+                      const selected = filtros.clasificacion === opt;
+                      return (
+                        <div key={opt}
+                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
+                          onClick={() => actions.setFiltros({ clasificacion: opt })} >
+                          <span className="text-xs select-none w-full">{opt}</span>
+                        </div>)
+                    })}
+                    {esAdministrador && (
+                      <div className="mt-2 pt-2 border-t border-[var(--border)]">
+                        <AdminCatalogo tipo="clasificacion" opciones={opcionesSelect.clasificacion} onUpdate={loadCatalogos} placeholder="NUEVA OPCIÓN" />
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 
@@ -739,49 +692,51 @@ const Busqueda = () => {
               Registros localizados: {resultados.length}
             </p>
           </footer>
-          <Table>
-            <TableHeader className="bg-[var(--surface-alt)]">
-              <TableRow>
-                <TableHead className="font-bold text-[var(--text-primary)] w-10"></TableHead>
-                <TableHead className="font-bold text-[var(--text-primary)]">Grado</TableHead>
-                <TableHead className="font-bold text-[var(--text-primary)]">Empleo</TableHead>
-                <TableHead className="font-bold text-[var(--text-primary)]">Apellido Paterno</TableHead>
-                <TableHead className="font-bold text-[var(--text-primary)]">Apellido Materno</TableHead>
-                <TableHead className="font-bold text-[var(--text-primary)]">Nombre</TableHead>
-                <TableHead className="font-bold text-[var(--text-primary)]">Matrícula</TableHead>
-                {filtros.familiares && <TableHead className="font-bold text-[var(--text-primary)]">Parentesco</TableHead>}
-              </TableRow>
-            </TableHeader>
-
-            <TableBody>
-              {(filtros.familiares ? familiaresMilitares : resultados).map((p: any, i: number) => (
-                <TableRow
-                  key={p.id_personal_militar || i}
-                  className="cursor-pointer hover:bg-[var(--surface-alt)]"
-                  onClick={() => appActions.seleccionarPersonal(p.id_personal_militar)}
-                >
-                  <TableCell>
-                    {puedeAgregar && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); abrirModalConducta(p); }}
-                        className="p-1.5 rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
-                        title="Registrar conducta"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                      </button>
-                    )}
-                  </TableCell>
-                  <TableCell>{p.grado?.abreviatura || '-'}</TableCell>
-                  <TableCell>{p.arma_servicio?.nombre_servicio || '-'}</TableCell>
-                  <TableCell>{p.apellido_paterno}</TableCell>
-                  <TableCell>{p.apellido_materno}</TableCell>
-                  <TableCell>{p.nombre}</TableCell>
-                  <TableCell>{p.matricula}</TableCell>
-                  {filtros.familiares && <TableCell>{p.parentesco || '-'}</TableCell>}
+          <div className="overflow-auto max-h-[400px]">
+            <Table>
+              <TableHeader className="sticky top-0 z-10 bg-[var(--surface-alt)] shadow-sm">
+                <TableRow>
+                  <TableHead className="font-bold text-[var(--text-primary)] w-10"></TableHead>
+                  <TableHead className="font-bold text-[var(--text-primary)]">Grado</TableHead>
+                  <TableHead className="font-bold text-[var(--text-primary)]">Empleo</TableHead>
+                  <TableHead className="font-bold text-[var(--text-primary)]">Apellido Paterno</TableHead>
+                  <TableHead className="font-bold text-[var(--text-primary)]">Apellido Materno</TableHead>
+                  <TableHead className="font-bold text-[var(--text-primary)]">Nombre</TableHead>
+                  <TableHead className="font-bold text-[var(--text-primary)]">Matrícula</TableHead>
+                  {filtros.familiares && <TableHead className="font-bold text-[var(--text-primary)]">Parentesco</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+
+              <TableBody>
+                {(filtros.familiares ? familiaresMilitares : resultados).map((p: any, i: number) => (
+                  <TableRow
+                    key={p.id_personal_militar || i}
+                    className="cursor-pointer hover:bg-[var(--surface-alt)]"
+                    onClick={() => appActions.seleccionarPersonal(p.id_personal_militar)}
+                  >
+                    <TableCell>
+                      {puedeAgregar && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); abrirModalConducta(p); }}
+                          className="p-1.5 rounded-md text-indigo-600 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+                          title="Registrar conducta"
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                        </button>
+                      )}
+                    </TableCell>
+                    <TableCell>{p.grado?.abreviatura || '-'}</TableCell>
+                    <TableCell>{p.arma_servicio?.nombre_servicio || '-'}</TableCell>
+                    <TableCell>{p.apellido_paterno}</TableCell>
+                    <TableCell>{p.apellido_materno}</TableCell>
+                    <TableCell>{p.nombre}</TableCell>
+                    <TableCell>{p.matricula}</TableCell>
+                    {filtros.familiares && <TableCell>{p.parentesco || '-'}</TableCell>}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </section>
       </div>
 
