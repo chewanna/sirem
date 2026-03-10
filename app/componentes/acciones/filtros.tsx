@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useMemo, useReducer } from 'react';
+import React, { createContext, useContext, useMemo, useReducer, useCallback, useRef } from 'react';
 
 export type Filtros = {
   empleo: string[];
@@ -172,7 +172,10 @@ export function ProveedorFiltrosBusqueda({ children }: { children: React.ReactNo
 
   const [state, dispatch] = useReducer(reductor, estadoInicialConStorage);
 
-  const buscar = async (filtrosActuales: Filtros) => {
+  // Ref para el timer de debounce
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const buscar = useCallback(async (filtrosActuales: Filtros) => {
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
@@ -182,7 +185,6 @@ export function ProveedorFiltrosBusqueda({ children }: { children: React.ReactNo
 
       if (!res.ok) {
         if (res.status === 401 && typeof window !== 'undefined') {
-          // Si el middleware nos da un 401, el token expiró. Limpiamos la sesión:
           localStorage.removeItem('sismov_auth');
           localStorage.removeItem('sismov_user');
           if (window.location.pathname !== '/login') {
@@ -198,21 +200,30 @@ export function ProveedorFiltrosBusqueda({ children }: { children: React.ReactNo
     } catch (error) {
       console.error(error);
     }
-  };
+  }, []);
+
+  // Búsqueda con debounce para evitar llamadas excesivas
+  const buscarConDebounce = useCallback((filtrosActuales: Filtros) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      buscar(filtrosActuales);
+    }, 300);
+  }, [buscar]);
 
   // Efecto para hidratar la búsqueda inicial al recargar si hay filtros guardados
   React.useEffect(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('sismov_filtros') && localStorage.getItem('sismov_auth') === 'true') {
       buscar(state.filtros);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const actions = useMemo(
     () => ({
       setFiltros: (valor: Partial<Filtros>) => {
-        dispatch({ type: 'ESTABLECER', valor });
         const nuevosFiltros = { ...state.filtros, ...valor };
-        buscar(nuevosFiltros);
+        dispatch({ type: 'ESTABLECER', valor });
+        buscarConDebounce(nuevosFiltros);
       },
       reiniciar: () => {
         dispatch({ type: 'REINICIAR' });
@@ -220,7 +231,7 @@ export function ProveedorFiltrosBusqueda({ children }: { children: React.ReactNo
       },
       buscar,
     }),
-    [state.filtros]
+    [state.filtros, buscar, buscarConDebounce]
   );
 
   const value = useMemo(() => ({ state, actions }), [state, actions]);

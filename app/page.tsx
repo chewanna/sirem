@@ -44,7 +44,7 @@ export default async function Page() {
         MATCH (p:PersonalMilitar)-[:TUVO_MOVIMIENTO]->(m:Movimiento)
         OPTIONAL MATCH (p)-[:TIENE_GRADO]->(g:Grado)
         RETURN m, p{.*}, g.nombre_grado AS grado_nombre
-        ORDER BY m.fecha_mov DESC LIMIT 5
+        ORDER BY m.fecha_mov DESC
       `),
       runQuery(`
         MATCH (a:ArmaServicio)

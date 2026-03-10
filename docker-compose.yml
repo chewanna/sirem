@@ -27,10 +27,15 @@ services:
     restart: always
     volumes:
       - ./app:/usr/src/app/app
+      - ./lib:/usr/src/app/lib
+      - ./middleware.ts:/usr/src/app/middleware.ts
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: mongodb://db:27017/sismov?directConnection=true
+      NEO4J_URI: bolt://db:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: sirem_password
+      JWT_SECRET: supersecret_local_dev_key
       USE_VLLM: "true"
       VLLM_URL: "http://vllm:8000/v1/chat/completions"
       USE_OLLAMA: "false"
@@ -39,8 +44,13 @@ services:
         - action: sync
           path: ./app
           target: /usr/src/app/app
+        - action: sync
+          path: ./lib
+          target: /usr/src/app/lib
         - action: rebuild
           path: package.json
+        - action: rebuild
+          path: middleware.ts
     depends_on:
       db:
         condition: service_healthy
