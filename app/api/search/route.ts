@@ -41,7 +41,7 @@ export async function POST(request: Request) {
         const filtros = await request.json()
 
         const hasFilters = Object.entries(filtros).some(([key, val]) =>
-            key !== 'familiares' && key !== 'semaforo' && (
+            key !== 'familiares' && (
                 (Array.isArray(val) && val.length > 0) ||
                 (typeof val === 'string' && val.trim() !== '') ||
                 (typeof val === 'boolean' && val === true)

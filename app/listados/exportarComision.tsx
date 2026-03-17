@@ -160,7 +160,7 @@ export const ExportarComision: React.FC<ExportarButtonsProps> = ({ listado }) =>
         `;
 
         data.forEach(p => {
-            const fullname = `${p.grado?.abreviatura || ''} ${p.arma_servicio?.abreviatura || p.arma_servicio?.nombre_servicio || ''} ${p.nombre} ${p.apellido_paterno} ${p.apellido_materno || ''}`.toUpperCase().trim();
+            const fullname = `${p.grado?.abreviatura || ''} ${p.arma_servicio?.abreviatura || p.arma_servicio?.nombre_servicio || ''} ${p.profesion || ''} ${p.nombre} ${p.apellido_paterno} ${p.apellido_materno || ''}`.toUpperCase().trim();
             const photoSrc = p.foto_src || p.foto_b64;
 
             html += `

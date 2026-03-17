@@ -175,6 +175,7 @@ export const ExportarCaratula: React.FC<ExportarButtonsProps> = ({ personal }) =
         data.forEach(p => {
             const gradoStr = p.grado?.abreviatura || '';
             const armaStr = p.arma_servicio?.abreviatura || p.arma_servicio?.nombre_servicio || '';
+            const profesionStr = p.profesion || '';
             const nombreStr = `${p.nombre} ${p.apellido_paterno} ${p.apellido_materno || ''}`.toUpperCase().trim();
             const photoSrc = p.foto_src || p.foto_b64;
 
@@ -247,7 +248,7 @@ export const ExportarCaratula: React.FC<ExportarButtonsProps> = ({ personal }) =
                                 </div>
                             </td>
                             <td class="info-col" style="padding: 10px 10px 0 10px; vertical-align: top;">
-                                <div style="font-size: 14px; font-weight: normal; color: #333; margin-bottom: 4px;">${gradoStr} ${armaStr}</div>
+                                <div style="font-size: 14px; font-weight: normal; color: #333; margin-bottom: 4px;">${gradoStr} ${armaStr} ${profesionStr}</div>
                                 <div style="font-size: 15px; font-weight: bold; margin-bottom: 16px; color: #000;">${nombreStr}</div>
                                 
                                 <div style="border: 1px solid #424141ff; padding: 8px;">

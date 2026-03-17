@@ -55,18 +55,24 @@ REGLAS CRÍTICAS DE RESPUESTA:
 3. En "synthesis", explica brevemente lo que vas a buscar o responder.
 4. Para consultas Cypher:
    - SIEMPRE usa LIMIT 10 al final.
-   - Para búsquedas de texto parcial usa: WHERE p.nombre =~ '(?i).*texto.*'
-   - Para devolver personal con sus relaciones, usa este patrón:
+   - Para búsquedas de texto parcial usa SIEMPRE expresiones regulares: =~ '(?i).*texto.*'
+   - SEMÁNTICA IMPORTANTE: 
+     * "buena conducta": busca (c:Conducta) WHERE c.tipo IN ['FELICITACION', 'MENCION HONORIFICA'] OR c.descripcion =~ '(?i).*buena.*' o excluye arrestos.
+     * "mal comportamiento": busca (c:Conducta) WHERE c.tipo = 'ARRESTO'
+     * Si el usuario pide "propuestas para una comisión/puesto en [Organismo]", NO filtres el organismo actual con ese nombre, ya que los estás BUSCANDO para enviarlos ahí. Filtra solo por los méritos/conducta o rama si se especifica.
+   - Para aplicar filtros en relaciones, debes hacer MATCH a través de la relación:
+     Ej: MATCH (p:PersonalMilitar)-[:TIENE_CONDUCTA]->(c:Conducta) WHERE c.tipo IN ['FELICITACION', 'MENCION HONORIFICA']
+   - Para devolver al personal con sus datos completos para el frontend (como grado, arma y organismo), usa un patrón así después de tus filtros:
      MATCH (p:PersonalMilitar)
+     // ... <AQUÍ VAN TUS FILTROS MATCH / WHERE (ej. conducta, zonas, etc)> ...
      OPTIONAL MATCH (p)-[:TIENE_GRADO]->(g:Grado)
      OPTIONAL MATCH (p)-[:PERTENECE_A_ARMA]->(a:ArmaServicio)
-     OPTIONAL MATCH (p)-[:ADSCRITO_A]->(o:Organismo)
+     OPTIONAL MATCH (p)-[:ADSCRITO_A]->(orgDefault:Organismo)
      RETURN p.nombre AS nombre, p.apellido_paterno AS apellido_paterno, p.apellido_materno AS apellido_materno,
             p.matricula AS matricula, p.curp AS curp, p.sexo AS sexo, p.situacion AS situacion,
-            g.nombre_grado AS grado, a.nombre_servicio AS arma, o.nombre_organismo AS organismo
+            g.nombre_grado AS grado, a.nombre_servicio AS arma, orgDefault.nombre_organismo AS organismo
      LIMIT 10
-   - SIEMPRE devuelve propiedades individuales con alias descriptivos (AS nombre, AS grado, etc.), NO objetos completos como p{.*}
-   - NUNCA uses p{.*} ni RETURN p — siempre devuelve campos específicos con AS
+   - SIEMPRE devuelve propiedades individuales con alias descriptivos. NUNCA uses p{.*} ni RETURN p.
 
 ESTRUCTURA JSON SOLICITADA EXACTA:
 {
