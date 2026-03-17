@@ -68,20 +68,37 @@ export async function POST(request: Request) {
             params.empleo = filtros.empleo
         }
         if (filtros.arma && filtros.arma.length > 0) {
-            whereClauses.push(`ANY(a IN $arma WHERE toLower(arm.nombre_servicio) CONTAINS toLower(a))`)
+            whereClauses.push(`ANY(a IN $arma WHERE toLower(arm.nombre_servicio) = toLower(a) OR toLower(arm.abreviatura) = toLower(a))`)
             params.arma = filtros.arma
         }
         if (filtros.region && filtros.region.length > 0) {
-            whereClauses.push(`ANY(r IN $region WHERE toLower(reg.nombre_region_militar) CONTAINS toLower(r) OR toLower(reg.numero) CONTAINS toLower(r))`)
+            whereClauses.push(`ANY(r IN $region WHERE toLower(reg.nombre_region_militar) = toLower(r) OR toLower(reg.numero) = toLower(r))`)
             params.region = filtros.region
         }
         if (filtros.zona && filtros.zona.length > 0) {
-            whereClauses.push(`ANY(z IN $zona WHERE toLower(zon.nombre_zona_militar) CONTAINS toLower(z) OR toLower(zon.numero) CONTAINS toLower(z))`)
+            whereClauses.push(`ANY(z IN $zona WHERE toLower(zon.nombre_zona_militar) = toLower(z) OR toLower(zon.numero) = toLower(z))`)
             params.zona = filtros.zona
         }
         if (filtros.estadoNacimiento && filtros.estadoNacimiento.length > 0) {
-            whereClauses.push(`ANY(e IN $estadoNacimiento WHERE toLower(p.estado_nacimiento) CONTAINS toLower(e))`)
+            whereClauses.push(`ANY(e IN $estadoNacimiento WHERE toLower(p.estado_nacimiento) = toLower(e))`)
             params.estadoNacimiento = filtros.estadoNacimiento
+        }
+
+        if (filtros.especialidad && filtros.especialidad.length > 0) {
+            whereClauses.push(`ANY(e IN $especialidad WHERE toLower(p.especialidad) = toLower(e))`)
+            params.especialidad = filtros.especialidad
+        }
+        if (filtros.profesion && filtros.profesion.length > 0) {
+            whereClauses.push(`ANY(pr IN $profesion WHERE toLower(p.profesion) = toLower(pr))`)
+            params.profesion = filtros.profesion
+        }
+        if (filtros.subespecialidad && filtros.subespecialidad.length > 0) {
+            whereClauses.push(`ANY(s IN $subespecialidad WHERE toLower(p.subespecialidad) = toLower(s))`)
+            params.subespecialidad = filtros.subespecialidad
+        }
+        if (filtros.situacion && filtros.situacion.length > 0) {
+            whereClauses.push(`ANY(si IN $situacion WHERE toLower(p.situacion) = toLower(si))`)
+            params.situacion = filtros.situacion
         }
 
         // === FILTROS DE TEXTO (string) ===
@@ -90,10 +107,6 @@ export async function POST(request: Request) {
             apellidoMaterno: 'apellido_materno',
             nombre: 'nombre',
             matricula: 'matricula',
-            especialidad: 'especialidad',
-            profesion: 'profesion',
-            subespecialidad: 'subespecialidad',
-            situacion: 'situacion',
             lugarNacimiento: 'lugar_nacimiento',
             ubicacion: 'ubicacion',
         }

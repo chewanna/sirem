@@ -9,10 +9,10 @@ export type Filtros = {
   nombre: string;
   matricula: string;
   arma: string[];
-  especialidad: string;
-  profesion: string;
-  subespecialidad: string;
-  situacion: string;
+  especialidad: string[];
+  profesion: string[];
+  subespecialidad: string[];
+  situacion: string[];
   region: string[];
   zona: string[];
   sexo: string;
@@ -55,10 +55,10 @@ export const filtrosIniciales: Filtros = {
   nombre: '',
   matricula: '',
   arma: [],
-  especialidad: '',
-  profesion: '',
-  subespecialidad: '',
-  situacion: '',
+  especialidad: [],
+  profesion: [],
+  subespecialidad: [],
+  situacion: [],
   region: [],
   zona: [],
   sexo: '',
@@ -151,7 +151,16 @@ export function ProveedorFiltrosBusqueda({ children }: { children: React.ReactNo
 
       if (guardadoFiltros) {
         try {
-          filtros = JSON.parse(guardadoFiltros);
+          const parsed = JSON.parse(guardadoFiltros);
+          filtros = { ...estadoInicial.filtros, ...parsed };
+          
+          // Migración para datos cacheados en localStorage
+          const fieldsToMigrate = ['especialidad', 'profesion', 'subespecialidad', 'situacion'];
+          fieldsToMigrate.forEach(field => {
+            if (typeof (filtros as any)[field] === 'string') {
+              (filtros as any)[field] = (filtros as any)[field] ? [(filtros as any)[field]] : [];
+            }
+          });
         } catch (e) {
           console.error("Error leyendo filtros del storage");
         }

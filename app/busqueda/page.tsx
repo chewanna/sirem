@@ -216,21 +216,22 @@ const Busqueda = () => {
                 <Popover>
                   <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
                     <button className="flex items-center justify-between w-full outline-none">
-                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.especialidad || "TODOS"}</span>
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.especialidad.length > 0 ? filtros.especialidad.join(", ") : "TODOS"}</span>
                       <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
-                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.especialidad ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ especialidad: '' })}>
-                      <span className="text-xs select-none">TODOS</span>
+                    <div className="flex items-center gap-2 rounded p-1 transition-colors cursor-pointer hover:bg-[var(--surface)]" onClick={() => actions.setFiltros({ especialidad: [] })}>
+                      <span className="text-xs font-bold text-red-600 select-none">LIMPIAR SELECCIÓN</span>
                     </div>
                     {opcionesSelect.especialidad.map((opt) => {
-                      const selected = filtros.especialidad === opt;
+                      const checked = filtros.especialidad.includes(opt);
                       return (
                         <div key={opt}
-                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
-                          onClick={() => actions.setFiltros({ especialidad: opt })} >
-                          <span className="text-xs select-none w-full">{opt}</span>
+                          className="flex items-center gap-2 hover:bg-[var(--surface)] rounded p-1 transition-colors cursor-pointer"
+                          onClick={() => handleCheckboxChange("especialidad", opt, !checked)} >
+                          <span className={`h-4 w-4 flex items-center justify-center border rounded ${checked ? "bg-blue-600 text-white" : "bg-white"}`} > {checked ? "✓" : ""}</span>
+                          <span className="text-xs text-[var(--text-secondary)] select-none">{opt}</span>
                         </div>)
                     })}
                     {esAdministrador && (
@@ -247,21 +248,22 @@ const Busqueda = () => {
                 <Popover>
                   <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
                     <button className="flex items-center justify-between w-full outline-none">
-                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.profesion || "TODOS"}</span>
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.profesion.length > 0 ? filtros.profesion.join(", ") : "TODOS"}</span>
                       <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
-                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.profesion ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ profesion: '' })}>
-                      <span className="text-xs select-none">TODOS</span>
+                    <div className="flex items-center gap-2 rounded p-1 transition-colors cursor-pointer hover:bg-[var(--surface)]" onClick={() => actions.setFiltros({ profesion: [] })}>
+                      <span className="text-xs font-bold text-red-600 select-none">LIMPIAR SELECCIÓN</span>
                     </div>
                     {opcionesSelect.profesion.map((opt) => {
-                      const selected = filtros.profesion === opt;
+                      const checked = filtros.profesion.includes(opt);
                       return (
                         <div key={opt}
-                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
-                          onClick={() => actions.setFiltros({ profesion: opt })} >
-                          <span className="text-xs select-none w-full">{opt}</span>
+                          className="flex items-center gap-2 hover:bg-[var(--surface)] rounded p-1 transition-colors cursor-pointer"
+                          onClick={() => handleCheckboxChange("profesion", opt, !checked)} >
+                          <span className={`h-4 w-4 flex items-center justify-center border rounded ${checked ? "bg-blue-600 text-white" : "bg-white"}`} > {checked ? "✓" : ""}</span>
+                          <span className="text-xs text-[var(--text-secondary)] select-none">{opt}</span>
                         </div>)
                     })}
                     {esAdministrador && (
@@ -278,21 +280,22 @@ const Busqueda = () => {
                 <Popover>
                   <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
                     <button className="flex items-center justify-between w-full outline-none">
-                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.subespecialidad || "TODOS"}</span>
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.subespecialidad.length > 0 ? filtros.subespecialidad.join(", ") : "TODOS"}</span>
                       <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
-                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.subespecialidad ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ subespecialidad: '' })}>
-                      <span className="text-xs select-none">TODOS</span>
+                    <div className="flex items-center gap-2 rounded p-1 transition-colors cursor-pointer hover:bg-[var(--surface)]" onClick={() => actions.setFiltros({ subespecialidad: [] })}>
+                      <span className="text-xs font-bold text-red-600 select-none">LIMPIAR SELECCIÓN</span>
                     </div>
                     {opcionesSelect.subespecialidad.map((opt) => {
-                      const selected = filtros.subespecialidad === opt;
+                      const checked = filtros.subespecialidad.includes(opt);
                       return (
                         <div key={opt}
-                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
-                          onClick={() => actions.setFiltros({ subespecialidad: opt })} >
-                          <span className="text-xs select-none w-full">{opt}</span>
+                          className="flex items-center gap-2 hover:bg-[var(--surface)] rounded p-1 transition-colors cursor-pointer"
+                          onClick={() => handleCheckboxChange("subespecialidad", opt, !checked)} >
+                          <span className={`h-4 w-4 flex items-center justify-center border rounded ${checked ? "bg-blue-600 text-white" : "bg-white"}`} > {checked ? "✓" : ""}</span>
+                          <span className="text-xs text-[var(--text-secondary)] select-none">{opt}</span>
                         </div>)
                     })}
                     {esAdministrador && (
@@ -309,21 +312,22 @@ const Busqueda = () => {
                 <Popover>
                   <PopoverTrigger asChild className="px-3 h-10 border border-[var(--border)] rounded-lg bg-[var(--surface)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer outline-none">
                     <button className="flex items-center justify-between w-full outline-none">
-                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.situacion || "TODOS"}</span>
+                      <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">{filtros.situacion.length > 0 ? filtros.situacion.join(", ") : "TODOS"}</span>
                       <ChevronDown className="w-5 h-5 text-[var(--text-muted)]" />
                     </button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-3 space-y-2 max-h-48 overflow-y-auto outline-none">
-                    <div className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${!filtros.situacion ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`} onClick={() => actions.setFiltros({ situacion: '' })}>
-                      <span className="text-xs select-none">TODOS</span>
+                    <div className="flex items-center gap-2 rounded p-1 transition-colors cursor-pointer hover:bg-[var(--surface)]" onClick={() => actions.setFiltros({ situacion: [] })}>
+                      <span className="text-xs font-bold text-red-600 select-none">LIMPIAR SELECCIÓN</span>
                     </div>
                     {opcionesSelect.situacion.map((opt) => {
-                      const selected = filtros.situacion === opt;
+                      const checked = filtros.situacion.includes(opt);
                       return (
                         <div key={opt}
-                          className={`flex items-center gap-2 rounded px-2 py-1.5 transition-colors cursor-pointer ${selected ? "bg-blue-50 text-blue-700 font-bold dark:bg-blue-900/30 dark:text-blue-400" : "hover:bg-[var(--surface)] text-[var(--text-secondary)]"}`}
-                          onClick={() => actions.setFiltros({ situacion: opt })} >
-                          <span className="text-xs select-none w-full">{opt}</span>
+                          className="flex items-center gap-2 hover:bg-[var(--surface)] rounded p-1 transition-colors cursor-pointer"
+                          onClick={() => handleCheckboxChange("situacion", opt, !checked)} >
+                          <span className={`h-4 w-4 flex items-center justify-center border rounded ${checked ? "bg-blue-600 text-white" : "bg-white"}`} > {checked ? "✓" : ""}</span>
+                          <span className="text-xs text-[var(--text-secondary)] select-none">{opt}</span>
                         </div>)
                     })}
                     {esAdministrador && (
