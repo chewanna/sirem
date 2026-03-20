@@ -56,7 +56,7 @@ export default function UsuariosSettings() {
     const getRoleFromMesa = (mesaId: string | null) => {
         if (!mesaId) return 3; // Usuario regular sin mesa
         const mesa = mesas.find((m: any) => m.mesa_id == mesaId);
-        if (mesa && mesa.nombremesa.toLowerCase().includes('disciplina')) {
+        if (mesa && (mesa.nombremesa || mesa.nombre)?.toLowerCase().includes('disciplina')) {
             return 2; // Rol 2: Disciplina y Oficiales
         }
         return 3; // Rol 3: Resto de las mesas
@@ -83,7 +83,7 @@ export default function UsuariosSettings() {
                         className="p-2 border rounded text-sm text-[var(--text-secondary)]"
                     >
                         <option className="bg-[var(--surface-alt)] text-[var(--text-primary)]" value="">-- Sin Mesa (Usuario Regular) --</option>
-                        {mesas.map((m: any) => <option className="bg-[var(--surface-alt)] text-[var(--text-secondary)]" key={m.mesa_id} value={m.mesa_id}>{m.nombremesa}</option>)}
+                        {mesas.map((m: any) => <option className="bg-[var(--surface-alt)] text-[var(--text-secondary)]" key={m.mesa_id} value={m.mesa_id}>{m.nombre || m.nombremesa}</option>)}
                     </select>
                 </div>
                 <div className="mb-4">
@@ -182,7 +182,7 @@ export default function UsuariosSettings() {
                                 onChange={(e) => authFetch(`/api/users/${u.id_usuario}`, 'PUT', { id_role: e.target.value, id_mesa: u.id_mesa, id_grupo: u.id_grupo, id_subsec: u.id_subsec })}
                                 className="p-2 border rounded text-[10px]"
                             >
-                                {roles.map((r: any) => <option key={r.id_role} value={r.id_role}>{r.nombre_role}</option>)}
+                                {roles.map((r: any) => <option key={r.id_role} value={r.id_role}>{r.nombre || r.nombre_role}</option>)}
                             </select>
                             <select
                                 value={u.id_subsec || ''}
@@ -190,7 +190,7 @@ export default function UsuariosSettings() {
                                 className="p-2 border rounded text-[10px]"
                             >
                                 <option value="">-- Subseccion --</option>
-                                {subsecciones.map((s: any) => <option key={s.id_subseccion} value={s.id_subseccion}>{s.nombresubsec}</option>)}
+                                {subsecciones.map((s: any) => <option key={s.id_subseccion} value={s.id_subseccion}>{s.nombre || s.nombresubsec}</option>)}
                             </select>
                             <select
                                 value={u.id_grupo || ''}
@@ -198,7 +198,7 @@ export default function UsuariosSettings() {
                                 className="p-2 border rounded text-[10px]"
                             >
                                 <option value="">-- Grupo --</option>
-                                {grupos.map((g: any) => <option key={g.grupo_id} value={g.grupo_id}>{g.nombregrupo}</option>)}
+                                {grupos.map((g: any) => <option key={g.grupo_id} value={g.grupo_id}>{g.nombre || g.nombregrupo}</option>)}
                             </select>
                             <select
                                 value={u.id_mesa || ''}
@@ -214,7 +214,7 @@ export default function UsuariosSettings() {
                                 className="p-2 border rounded text-[10px]"
                             >
                                 <option value="">-- Mesa --</option>
-                                {mesas.map((m: any) => <option key={m.mesa_id} value={m.mesa_id}>{m.nombremesa}</option>)}
+                                {mesas.map((m: any) => <option key={m.mesa_id} value={m.mesa_id}>{m.nombre || m.nombremesa}</option>)}
                             </select>
                         </div>
                     ))

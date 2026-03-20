@@ -46,7 +46,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return (
       <Login
         alIngresar={(user) => {
-          actions.login(user); // Guarda el estado en tu contexto
+          actions.login(user); // Guarda el estado en el contexto
           // Si el usuario acaba de iniciar sesión estando en /login, sácalo de ahí
           if (pathname === '/login') {
             router.push('/');
