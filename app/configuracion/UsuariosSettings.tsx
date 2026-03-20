@@ -180,14 +180,14 @@ export default function UsuariosSettings() {
                             <select
                                 value={u.id_role}
                                 onChange={(e) => authFetch(`/api/users/${u.id_usuario}`, 'PUT', { id_role: e.target.value, id_mesa: u.id_mesa, id_grupo: u.id_grupo, id_subsec: u.id_subsec })}
-                                className="p-2 border rounded text-[10px]"
+                                className="p-2 border rounded text-[10px] text-[var(--text-secondary)]"
                             >
                                 {roles.map((r: any) => <option key={r.id_role} value={r.id_role}>{r.nombre || r.nombre_role}</option>)}
                             </select>
                             <select
                                 value={u.id_subsec || ''}
                                 onChange={(e) => authFetch(`/api/users/${u.id_usuario}`, 'PUT', { id_role: u.id_role, id_mesa: u.id_mesa, id_grupo: u.id_grupo, id_subsec: e.target.value || null })}
-                                className="p-2 border rounded text-[10px]"
+                                className="p-2 border rounded text-[10px] text-[var(--text-secondary)]"
                             >
                                 <option value="">-- Subseccion --</option>
                                 {subsecciones.map((s: any) => <option key={s.id_subseccion} value={s.id_subseccion}>{s.nombre || s.nombresubsec}</option>)}
@@ -195,7 +195,7 @@ export default function UsuariosSettings() {
                             <select
                                 value={u.id_grupo || ''}
                                 onChange={(e) => authFetch(`/api/users/${u.id_usuario}`, 'PUT', { id_role: u.id_role, id_mesa: u.id_mesa, id_grupo: e.target.value || null, id_subsec: u.id_subsec })}
-                                className="p-2 border rounded text-[10px]"
+                                className="p-2 border rounded text-[10px] text-[var(--text-secondary)]"
                             >
                                 <option value="">-- Grupo --</option>
                                 {grupos.map((g: any) => <option key={g.grupo_id} value={g.grupo_id}>{g.nombre || g.nombregrupo}</option>)}
@@ -206,12 +206,12 @@ export default function UsuariosSettings() {
                                     const newMesaId = e.target.value || null;
                                     let updatedRole = u.id_role;
                                     if (updatedRole !== 1) {
-                                        // Auto-asignar el rol según la nueva mesa solo si no es ADMIN actualmente
+
                                         updatedRole = getRoleFromMesa(newMesaId);
                                     }
                                     authFetch(`/api/users/${u.id_usuario}`, 'PUT', { id_role: updatedRole, id_mesa: newMesaId, id_grupo: u.id_grupo, id_subsec: u.id_subsec });
                                 }}
-                                className="p-2 border rounded text-[10px]"
+                                className="p-2 border rounded text-[10px] text-[var(--text-secondary)]"
                             >
                                 <option value="">-- Mesa --</option>
                                 {mesas.map((m: any) => <option key={m.mesa_id} value={m.mesa_id}>{m.nombre || m.nombremesa}</option>)}
