@@ -58,8 +58,11 @@ export async function PUT(request: Request) {
 
     const session = driver.session();
     try {
-        // 1. Actualizar en el catálogo
-        await session.run(`MATCH (c:Catalogo {tipo: $tipo, valor: $oldValue}) SET c.valor = $newValue RETURN c`, { tipo, oldValue, newValue });
+        // 1. Actualizar en el catálogo, o agregarlo si es de una lista base y se modifica por primera vez
+        const catRes = await session.run(`MATCH (c:Catalogo {tipo: $tipo, valor: $oldValue}) SET c.valor = $newValue RETURN c`, { tipo, oldValue, newValue });
+        if (catRes.records.length === 0) {
+            await session.run(`MERGE (c:Catalogo {tipo: $tipo, valor: $newValue})`, { tipo, newValue });
+        }
 
         // 2. Cascadas si aplica a propiedades de PersonalMilitar
         if (dbProperties[tipo]) {
@@ -96,7 +99,19 @@ export async function DELETE(request: Request) {
         // 1. Eliminar del catálogo
         await session.run(`MATCH (c:Catalogo {tipo: $tipo, valor: $valor}) DELETE c`, { tipo, valor });
 
-        // No borramos la propiedad de PersonalMilitar porque en una base de datos relacional/grafo eliminar una etiqueta no debe borrar la data que ya tenía ese string, pero si se desea, se pudiera hacer un set null. Sin embargo, para evitar pérdida accidental de datos, solo borramos del catálogo de opciones.
+        // 2. Cascadas a propiedades (set null)
+        if (dbProperties[tipo]) {
+            const prop = dbProperties[tipo];
+            const cypher = `MATCH (p:PersonalMilitar) WHERE p.${prop} = $valor SET p.${prop} = null`;
+            await session.run(cypher, { valor });
+        }
+
+        // 3. Eliminar por completo el nodo auxiliar en cascada
+        if (dbNodes[tipo]) {
+            const { label, prop } = dbNodes[tipo];
+            const cypher = `MATCH (n:${label}) WHERE n.${prop} = $valor DETACH DELETE n`;
+            await session.run(cypher, { valor });
+        }
 
         return NextResponse.json({ success: true });
     } catch (e) {
